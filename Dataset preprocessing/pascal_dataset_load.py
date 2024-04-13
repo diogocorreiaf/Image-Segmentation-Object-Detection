@@ -62,49 +62,58 @@ class PascalDataset(Dataset):
 
         print('Number of images in {}: {:d}'.format(split, len(self.images)))
 
-    def __getitem__(self, index):
-        image_path = self.images[index]
-        image = Image.open(image_path)
-        
-        if self.is_test:
-            return image
-        else:
-            annotation_path = self.annotations[index]
-            annotation = self._load_annotation(annotation_path)
-            return image, annotation
+
 
     def _load_annotation(self, annotation_path):
-        tree = ET.parse(annotation_path)
-        root = tree.getroot()
+            tree = ET.parse(annotation_path)
+            root = tree.getroot()
 
-        object_labels = []
-        bounding_boxes = []
+            object_labels = []
+            bounding_boxes = []
 
-        for obj in root.findall('object'):
-            object_label = obj.find('name').text
-            object_labels.append(object_label)
+            for obj in root.findall('object'):
+                object_label = obj.find('name').text
+                object_labels.append(object_label)
 
-            bbox = obj.find('bndbox')
-            xmin = float(bbox.find('xmin').text)
-            ymin = float(bbox.find('ymin').text)
-            xmax = float(bbox.find('xmax').text)
-            ymax = float(bbox.find('ymax').text)
-            bounding_boxes.append([xmin, ymin, xmax, ymax])
+                bbox = obj.find('bndbox')
+                xmin = float(bbox.find('xmin').text)
+                ymin = float(bbox.find('ymin').text)
+                xmax = float(bbox.find('xmax').text)
+                ymax = float(bbox.find('ymax').text)
+                bounding_boxes.append([xmin, ymin, xmax, ymax])
 
-        annotation_data = {
-            'object_labels': object_labels,
-            'bounding_boxes': bounding_boxes
-        }
+            annotation_data = {
+                'object_labels': object_labels,
+                'bounding_boxes': bounding_boxes
+            }
 
-        num_annotations = len(object_labels)
-        print(f"Number of annotations loaded from {annotation_path}: {num_annotations}")
+            num_annotations = len(object_labels)
+            print(f"Number of annotations loaded from {annotation_path}: {num_annotations}")
 
-        return annotation_data
+            return annotation_data
 
     def __len__(self):
-        return len(self.images)
+            return len(self.images)
+
+
+
+    def __getitem__(self, index):
+        _img, _target, _anno = self._pair_img_mask_anno(index)
+        sample = {'image': _img, 'segmentation_mask': _target, 'annotations': _anno}
+        return sample
+
+
+    def _pair_img_mask_anno(self, index):
+        _img = Image.open(self.images[index]).convert('RGB')
+        _target = Image.open(self.categories[index])
+        _anno = self._load_annotation(self.annotations[index])  
+
+        return _img, _target, _anno
+
 
 if __name__ == '__main__':
     train_dataset = PascalDataset(base_dir=train_path, split='train')
     val_dataset = PascalDataset(base_dir=train_path, split='val')
    # test_dataset = PascalDataset(base_dir=test_path, split='test', is_test=True)
+    sample = train_dataset[0]
+    print(sample)
