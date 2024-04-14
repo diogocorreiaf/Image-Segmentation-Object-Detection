@@ -3,6 +3,9 @@ from PIL import Image
 import numpy as np
 from xml.etree import ElementTree as ET
 from torch.utils.data import Dataset
+from transformations import transform_tr, transform_val
+
+
 
 train_path = 'C:\\Users\\diogo\\Documents\\UVT\\THESIS\\Dataset\\VOC2012_train_val'
 test_path = 'C:\\Users\\diogo\\Documents\\UVT\\THESIS\\Dataset\\VOC2012_test'
@@ -98,10 +101,16 @@ class PascalDataset(Dataset):
 
 
     def __getitem__(self, index):
-        _img, _target, _anno = self._pair_img_mask_anno(index)
-        sample = {'image': _img, 'segmentation_mask': _target, 'annotations': _anno}
-        return sample
+        image, segmentation_mask, annotation = self._pair_img_mask_anno(index)
 
+        if self.split == 'train':
+            sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
+            transformed_sample = transform_tr(sample)
+        elif self.split == 'val':
+            sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
+            transformed_sample = transform_val(sample)
+
+        return transformed_sample
 
     def _pair_img_mask_anno(self, index):
         _img = Image.open(self.images[index]).convert('RGB')
