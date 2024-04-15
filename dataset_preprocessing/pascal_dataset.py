@@ -1,12 +1,9 @@
 import os
 from PIL import Image
-import numpy as np
 from xml.etree import ElementTree as ET
-from torch.utils.data import Dataset
-from transformations import transform_tr, transform_val
-import matplotlib.pyplot as plt
-import os
-
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from dataset_preprocessing.transformations import transform_tr, transform_val
 
 train_path = 'C:\\Users\\diogo\\Documents\\UVT\\THESIS\\Dataset\\VOC2012_train_val'
 test_path = 'C:\\Users\\diogo\\Documents\\UVT\\THESIS\\Dataset\\VOC2012_test'
@@ -55,7 +52,7 @@ class PascalDataset(Dataset):
                 self.annotations.append(_anno)
 
             # Assertions for image and segmentation mask loading
-            assert (len(self.images) == len(self.categories))
+            assert len(self.images) == len(self.categories)
 
             if not is_test:
                 assert len(self.images) == len(self.annotations), "Number of images does not match number of annotations"
@@ -64,69 +61,61 @@ class PascalDataset(Dataset):
                     assert os.path.isfile(img_file), f"Image file not found: {img_file}"
                     assert os.path.isfile(anno_file), f"Annotation file not found: {anno_file}"
 
-        print('Number of images in {}: {:d}'.format(split, len(self.images)))
-
-
-
     def _load_annotation(self, annotation_path):
-            tree = ET.parse(annotation_path)
-            root = tree.getroot()
+        tree = ET.parse(annotation_path)
+        root = tree.getroot()
 
-            object_labels = []
-            bounding_boxes = []
+        object_labels = []
+        bounding_boxes = []
 
-            for obj in root.findall('object'):
-                object_label = obj.find('name').text
-                object_labels.append(object_label)
+        for obj in root.findall('object'):
+            object_label = obj.find('name').text
+            object_labels.append(object_label)
 
-                bbox = obj.find('bndbox')
-                xmin = float(bbox.find('xmin').text)
-                ymin = float(bbox.find('ymin').text)
-                xmax = float(bbox.find('xmax').text)
-                ymax = float(bbox.find('ymax').text)
-                bounding_boxes.append([xmin, ymin, xmax, ymax])
+            bbox = obj.find('bndbox')
+            xmin = float(bbox.find('xmin').text)
+            ymin = float(bbox.find('ymin').text)
+            xmax = float(bbox.find('xmax').text)
+            ymax = float(bbox.find('ymax').text)
+            bounding_boxes.append([xmin, ymin, xmax, ymax])
 
-            annotation_data = {
-                'object_labels': object_labels,
-                'bounding_boxes': bounding_boxes
-            }
+        annotation_data = {
+            'object_labels': object_labels,
+            'bounding_boxes': bounding_boxes
+        }
 
-            num_annotations = len(object_labels)
-            print(f"Number of annotations loaded from {annotation_path}: {num_annotations}")
-
-            return annotation_data
+        num_annotations = len(object_labels)
+        return annotation_data
 
     def __len__(self):
-            return len(self.images)
-
-
+        return len(self.images)
 
     def __getitem__(self, index):
         image, segmentation_mask, annotation = self._pair_img_mask_anno(index)
-        transformed_sample = None
-
-        print('HELLO IM GET ITEM FUNCTION')
+        sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
 
         if self.split == 'train':
-                sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
-                transformed_sample = transform_tr(sample)
+            return sample
+            #return self.transform_tr(sample)
         elif self.split == 'val':
-                sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
-                transformed_sample = transform_val(sample)
+            return sample
+            #return self.transform_val(sample)
 
-        return transformed_sample
 
     def _pair_img_mask_anno(self, index):
         _img = Image.open(self.images[index]).convert('RGB')
+        print(self.images[index])
         _target = Image.open(self.categories[index])
         _anno = self._load_annotation(self.annotations[index])  
 
         return _img, _target, _anno
+    
 
+# Define your train and val datasets
+train_dataset = PascalDataset(base_dir=train_path, split='train')
+val_dataset = PascalDataset(base_dir=train_path, split='val')
 
-if __name__ == '__main__':
-    train_dataset = PascalDataset(base_dir=train_path, split='train')
-    val_dataset = PascalDataset(base_dir=train_path, split='val')
-   # test_dataset = PascalDataset(base_dir=test_path, split='test', is_test=True)
-    sample = train_dataset[0]
-    print(sample)
+# Create DataLoader instances with transformations
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
+

@@ -33,7 +33,6 @@ def transform_tr(sample):
     mask_transforms = tr.Compose([
         tr.RandomHorizontalFlip(),
         tr.RandomResizedCrop(size=(sample['segmentation_mask'].size[1], sample['segmentation_mask'].size[0]), scale=(0.5, 2.0)),
-        # Add more mask-specific transformations if needed
         tr.ToTensor()
     ])
 
@@ -48,7 +47,7 @@ def transform_tr(sample):
     transformed_sample = {
         'image': transformed_image,
         'segmentation_mask': transformed_mask,
-        'annotations': sample['annotations']  # Annotations remain unchanged
+        'annotations': sample['annotations']
     }
 
     return transformed_sample
