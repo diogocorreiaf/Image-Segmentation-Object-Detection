@@ -4,7 +4,8 @@ import numpy as np
 from xml.etree import ElementTree as ET
 from torch.utils.data import Dataset
 from transformations import transform_tr, transform_val
-
+import matplotlib.pyplot as plt
+import os
 
 
 train_path = 'C:\\Users\\diogo\\Documents\\UVT\\THESIS\\Dataset\\VOC2012_train_val'
@@ -102,13 +103,16 @@ class PascalDataset(Dataset):
 
     def __getitem__(self, index):
         image, segmentation_mask, annotation = self._pair_img_mask_anno(index)
+        transformed_sample = None
+
+        print('HELLO IM GET ITEM FUNCTION')
 
         if self.split == 'train':
-            sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
-            transformed_sample = transform_tr(sample)
+                sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
+                transformed_sample = transform_tr(sample)
         elif self.split == 'val':
-            sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
-            transformed_sample = transform_val(sample)
+                sample = {'image': image, 'segmentation_mask': segmentation_mask, 'annotations': annotation}
+                transformed_sample = transform_val(sample)
 
         return transformed_sample
 

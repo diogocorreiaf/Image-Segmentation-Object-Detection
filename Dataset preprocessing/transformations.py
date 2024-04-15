@@ -13,21 +13,46 @@ def transform_tr(sample):
     Returns:
         dict: Transformed sample.
     """
-    composed_transforms = tr.Compose([
+    print("Before transformations:")
+    print("Image shape:", sample['image'].shape)
+    print("Segmentation mask shape:", sample['segmentation_mask'].shape)
+
+    # Define transformations for both image and segmentation mask
+    image_transforms = tr.Compose([
         tr.RandomHorizontalFlip(),
         tr.RandomResizedCrop(size=(sample['image'].size[1], sample['image'].size[0]), scale=(0.5, 2.0)),
         tr.RandomApply([tr.GaussianBlur(kernel_size=7)], p=0.5),
         tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         tr.ToTensor()
     ])
-    
+
+    # Apply transformations to image
+    transformed_image = image_transforms(sample['image'])
+
+    # Apply same spatial transformations to segmentation mask
+    mask_transforms = tr.Compose([
+        tr.RandomHorizontalFlip(),
+        tr.RandomResizedCrop(size=(sample['segmentation_mask'].size[1], sample['segmentation_mask'].size[0]), scale=(0.5, 2.0)),
+        # Add more mask-specific transformations if needed
+        tr.ToTensor()
+    ])
+
+    # Apply transformations to segmentation mask
+    transformed_mask = mask_transforms(sample['segmentation_mask'])
+
+    print("After transformations:")
+    print("Transformed image shape:", transformed_image.shape)
+    print("Transformed segmentation mask shape:", transformed_mask.shape)
+
+    # Construct transformed sample
     transformed_sample = {
-        'image': composed_transforms(sample['image']),
-        'segmentation_mask': composed_transforms(sample['segmentation_mask']),
-        'annotations': transform_annotation(sample['annotations'], {'scale_factor': 1.0})  # No scaling for training
+        'image': transformed_image,
+        'segmentation_mask': transformed_mask,
+        'annotations': sample['annotations']  # Annotations remain unchanged
     }
 
     return transformed_sample
+
 
 def transform_val(sample):
     """
@@ -48,7 +73,7 @@ def transform_val(sample):
     transformed_sample = {
         'image': composed_transforms(sample['image']),
         'segmentation_mask': composed_transforms(sample['segmentation_mask']),
-        'annotations': transform_annotation(sample['annotations'], {'scale_factor': 1.0})  # No scaling for validation
+        #'annotations': transform_annotation(sample['annotations'], {'scale_factor': 1.0})  # No scaling for validation
     }
 
     return transformed_sample
