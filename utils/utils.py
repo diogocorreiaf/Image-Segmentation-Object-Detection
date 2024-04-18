@@ -21,7 +21,6 @@ def dataset_randomizer(dataset_path):
     total_lines = len(lines)
     train_lines = int(total_lines * 0.6)
     validation_lines = int(total_lines * 0.25)
-    test_lines = total_lines - train_lines - validation_lines
 
     with open(train_path, 'w') as train_file:
         train_file.truncate(0)
