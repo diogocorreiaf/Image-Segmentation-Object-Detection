@@ -1,21 +1,4 @@
-import os
-import logging, os
-logging.disable(logging.WARNING)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-import tensorflow as tf
-import cv2 as cv 
-import matplotlib.pyplot as plt
-from PIL import Image
-
-
-
-num_classes = 21 #Pascal VOC comes with 21 different classes
-
-
-# Define Path to Dataset
-dataset_path = '/mnt/c/Users/diogo/Documents/UVT/THESIS/Dataset'
-
-
+import  os
 
 def load_image_seg_class_paths (dataset_path,is_train = True):
     """
@@ -44,16 +27,4 @@ def load_image_seg_class_paths (dataset_path,is_train = True):
     return temp
 
 
-def main():
-    # Storing the list of paired images and segmentation class image
-    Train = load_image_seg_class_paths(dataset_path,is_train=True)
-    Val = load_image_seg_class_paths(dataset_path,is_train=False)
 
-    # shuffling the lists
-    Train = tf.random.shuffle(Train)
-    Val = tf.random.shuffle(Val)
-    
-    return 
-
-if __name__ == "__main__":
-    main()
