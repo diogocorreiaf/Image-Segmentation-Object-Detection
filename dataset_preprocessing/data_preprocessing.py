@@ -9,7 +9,7 @@ from albumentations import RandomRotate90
 # Pascal VOC constains 21 different classes 
 num_classes = 21
 
-# Size that Images will be resized
+# Size that Images will be resized to
 Img_Width,Img_Height = 224,224 
 
 import numpy as np
