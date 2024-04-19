@@ -4,7 +4,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
 from tensorflow import keras
 from keras import mixed_precision
-from dataset_preprocessing.data_loading import load_image_seg_class_paths
+from dataset_preprocessing.data_loading import load_image_seg_class_paths, load_image_annotations
 from dataset_preprocessing.data_preprocessing import create_data_loader
 from utils.utils import dataset_randomizer
 
@@ -22,25 +22,39 @@ def main():
 
 
     # Storing the list of paired images and segmentation class image
-    Train = load_image_seg_class_paths(dataset_path,dataset_type='train')
-    Val = load_image_seg_class_paths(dataset_path,dataset_type='validation')
-    Test = load_image_seg_class_paths(dataset_path,dataset_type='test')
+    Train_Segmentation = load_image_seg_class_paths(dataset_path,dataset_type='train')
+    Val_Segmentation = load_image_seg_class_paths(dataset_path,dataset_type='validation')
+    Test_Segmentation = load_image_seg_class_paths(dataset_path,dataset_type='test')
 
+    # Storing the list of paired images and annotations
+    Train_Object_Detection = load_image_annotations(dataset_path,dataset_type='train')
+    Val_Object_Detection = load_image_annotations(dataset_path,dataset_type='validation')
+    Test_Object_Detection = load_image_annotations(dataset_path,dataset_type='test')
 
     # shuffling the lists
-    Train = tf.random.shuffle(Train)
-    Val = tf.random.shuffle(Val)    
-    Test = tf.random.shuffle(Test)
+    Train_Segmentation = tf.random.shuffle(Train_Segmentation)
+    Val_Segmentation = tf.random.shuffle(Val_Segmentation)    
+    Test_Segmentation = tf.random.shuffle(Test_Segmentation)
+    Train_Object_Detection = tf.random.shuffle(Train_Object_Detection)
+    Val_Object_Detection = tf.random.shuffle(Val_Object_Detection)    
+    Test_Object_Detection = tf.random.shuffle(Test_Object_Detection)
+
+    # Create Tensorflow Dataset
+    Train_Segmentation = tf.data.Dataset.from_tensor_slices(Train_Segmentation)
+    Val_Segmentation = tf.data.Dataset.from_tensor_slices(Val_Segmentation)
+    Test_Segmentation = tf.data.Dataset.from_tensor_slices(Test_Segmentation)
+    Train_Object_Detection = tf.data.Dataset.from_tensor_slices(Train_Object_Detection)
+    Val_Object_Detection = tf.data.Dataset.from_tensor_slices(Val_Object_Detection)
+    Test_Object_Detection = tf.data.Dataset.from_tensor_slices(Test_Object_Detection)
 
 
-    #create Tensorflow Dataset
-    Train = tf.data.Dataset.from_tensor_slices(Train)
-    Val = tf.data.Dataset.from_tensor_slices(Val)
-    Test = tf.data.Dataset.from_tensor_slices(Test)
+        
+
+    Train_Segmentation = create_data_loader(Train_Segmentation)
+    Val_Segmentation = create_data_loader(Val_Segmentation)
+    Test_Segmentation = create_data_loader(Test_Segmentation)
+
     
-    Train = create_data_loader(Train)
-    Val = create_data_loader(Val)
-    Test = create_data_loader(Test)
 
 
     return 

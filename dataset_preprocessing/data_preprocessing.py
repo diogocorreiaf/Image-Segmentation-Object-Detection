@@ -44,18 +44,15 @@ def create_preprocess_mask_img(Instance):
     Returns:
     - tuple: A tuple containing preprocessed image and mask.
     '''
-    # Open and resize the image
     Img = Image.open(Instance[0].numpy())
     Img = Img.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
     Img = np.asarray(Img)
 
-    # Open and resize the mask
     Mask = Image.open(Instance[1].numpy())
     Mask = Mask.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
     Mask = np.asarray(Mask)
 
 
-    # Normalization
     Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
 
     if tf.random.uniform(()) > 0.5:
@@ -67,7 +64,7 @@ def create_preprocess_mask_img(Instance):
 
     return Normalization(Img), Create_Mask(Mask)
 
-def preprocess(Instance):
+def seg_preprocess(Instance):
     '''
     Preprocesses an image and its corresponding mask for training.
 
@@ -101,7 +98,7 @@ def create_data_loader(dataset, BATCH_SIZE=2, BUFFER_SIZE=2):
     Returns:
     - tf.data.Dataset: A TensorFlow dataset pipeline for training or validation.
     '''
-    data = dataset.map(preprocess,num_parallel_calls = tf.data.AUTOTUNE)
+    data = dataset.map(seg_preprocess,num_parallel_calls = tf.data.AUTOTUNE)
     data = data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
     data = data.prefetch(buffer_size = tf.data.AUTOTUNE)
     

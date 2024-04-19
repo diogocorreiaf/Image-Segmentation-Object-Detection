@@ -1,6 +1,8 @@
 import random
 import os
 
+
+
 def dataset_randomizer(dataset_path):
     ''' Randomizes the Dataset, acesses the trainval.txt and splits it between the train, val and test.txt file
         
@@ -33,4 +35,3 @@ def dataset_randomizer(dataset_path):
     with open(test_path, 'w') as test_file:
         test_file.truncate(0)
         test_file.writelines(lines[train_lines + validation_lines:])
-
