@@ -35,6 +35,7 @@ def main():
     Train_Segmentation = tf.random.shuffle(Train_Segmentation)
     Val_Segmentation = tf.random.shuffle(Val_Segmentation)    
     Test_Segmentation = tf.random.shuffle(Test_Segmentation)
+    
     Train_Object_Detection = tf.random.shuffle(Train_Object_Detection)
     Val_Object_Detection = tf.random.shuffle(Val_Object_Detection)    
     Test_Object_Detection = tf.random.shuffle(Test_Object_Detection)
@@ -43,18 +44,22 @@ def main():
     Train_Segmentation = tf.data.Dataset.from_tensor_slices(Train_Segmentation)
     Val_Segmentation = tf.data.Dataset.from_tensor_slices(Val_Segmentation)
     Test_Segmentation = tf.data.Dataset.from_tensor_slices(Test_Segmentation)
+
     Train_Object_Detection = tf.data.Dataset.from_tensor_slices(Train_Object_Detection)
     Val_Object_Detection = tf.data.Dataset.from_tensor_slices(Val_Object_Detection)
     Test_Object_Detection = tf.data.Dataset.from_tensor_slices(Test_Object_Detection)
 
 
         
+    # Dataset Augmentation and Preprocessing 
+    Train_Segmentation = create_data_loader(Train_Segmentation, 'train', 'segmentation')
+    Val_Segmentation = create_data_loader(Val_Segmentation,'val', 'segmentation')
+    Test_Segmentation = create_data_loader(Test_Segmentation,'test', 'segmentation')
 
-    Train_Segmentation = create_data_loader(Train_Segmentation)
-    Val_Segmentation = create_data_loader(Val_Segmentation)
-    Test_Segmentation = create_data_loader(Test_Segmentation)
+    Train_Object_Detection = create_data_loader(Train_Segmentation, 'train', 'detection')
+    Val_Object_Detection = create_data_loader(Train_Segmentation, 'val', 'detection')
+    Test_Object_Detection = create_data_loader(Train_Segmentation, 'test', 'detection')
 
-    
 
 
     return 
