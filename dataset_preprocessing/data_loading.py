@@ -1,6 +1,7 @@
 import os
 import  xml.etree.ElementTree as ET
 import tensorflow as tf
+from dataset_preprocessing.data_preprocessing import create_data_loader
 
 Pascal_VOC_classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
 
@@ -73,5 +74,31 @@ def load_image_annotations(dataset_path, dataset_type ):
 
 
 
+def load_and_shuffle_data(dataset_path, model_type):
+    if model_type == 'segmentation':
+        Train = load_image_seg_class_paths(dataset_path, dataset_type='train')
+        Val = load_image_seg_class_paths(dataset_path, dataset_type='validation')
+        Test = load_image_seg_class_paths(dataset_path, dataset_type='test')
+    elif model_type == 'detection':
+        Train = load_image_annotations(dataset_path, dataset_type='train')
+        Val = load_image_annotations(dataset_path, dataset_type='validation')
+        Test = load_image_annotations(dataset_path, dataset_type='test')
+    else:
+        raise ValueError("Invalid model_type. Use 'segmentation' or 'detection'.")
 
+    Train = tf.random.shuffle(Train)
+    Val = tf.random.shuffle(Val)
+    Test = tf.random.shuffle(Test)
 
+    return Train, Val, Test
+
+def create_datasets(Train,Val,Test, model_type):
+    Train = tf.data.Dataset.from_tensor_slices(Train)
+    Val = tf.data.Dataset.from_tensor_slices(Val)
+    Test = tf.data.Dataset.from_tensor_slices(Test)
+
+    Train = create_data_loader(Train, train_type='train', data_type=model_type)
+    Val = create_data_loader(Val, train_type='validation', data_type=model_type)
+    Test = create_data_loader(Test, train_type='test', data_type=model_type)
+
+    return Train, Val, Test

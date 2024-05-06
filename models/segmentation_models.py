@@ -64,3 +64,21 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
   Score = tf.keras.layers.Softmax(dtype = "float32")(Score)
 
   return tf.keras.Model(inputs = Input,outputs = Score)
+
+
+
+def create_model():
+  model = FCN_VGG8(224,224,21)
+  VGG16 = tf.keras.applications.vgg16.VGG16(weights='imagenet')
+
+  for i in range(19):
+      model.layers[i].set_weights(VGG16.layers[i].get_weights())
+
+  for layers in model.layers[:19]:
+      layers.trainable = False
+
+  MeanIou = tf.keras.metrics.MeanIoU(num_classes=21)
+  model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=1e-4,momentum=0.9),
+            loss=tf.keras.losses.categorical_crossentropy,
+            metrics=[MeanIou])
+  return model
