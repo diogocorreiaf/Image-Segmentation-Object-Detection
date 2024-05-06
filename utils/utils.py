@@ -1,6 +1,7 @@
 import random
 import os
 
+root_dir = os.path.join(os.curdir,"my_logs")
 
 
 def dataset_randomizer(dataset_path):
@@ -35,3 +36,9 @@ def dataset_randomizer(dataset_path):
     with open(test_path, 'w') as test_file:
         test_file.truncate(0)
         test_file.writelines(lines[train_lines + validation_lines:])
+
+
+def get_path():
+    import time
+    id_ = time.strftime("run_%Y_%m_%D_%H_%M_%S")
+    return os.path.join(root_dir,id_)
