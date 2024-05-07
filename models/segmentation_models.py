@@ -67,7 +67,7 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
 
 
 
-def create_model():
+def create_segmentation_model():
   model = FCN_VGG8(224,224,21)
   VGG16 = tf.keras.applications.vgg16.VGG16(weights='imagenet')
 

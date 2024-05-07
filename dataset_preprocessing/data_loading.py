@@ -85,7 +85,6 @@ def load_and_shuffle_data(dataset_path, model_type):
         Test = load_image_annotations(dataset_path, dataset_type='test')
     else:
         raise ValueError("Invalid model_type. Use 'segmentation' or 'detection'.")
-
     Train = tf.random.shuffle(Train)
     Val = tf.random.shuffle(Val)
     Test = tf.random.shuffle(Test)
@@ -97,8 +96,10 @@ def create_datasets(Train,Val,Test, model_type):
     Val = tf.data.Dataset.from_tensor_slices(Val)
     Test = tf.data.Dataset.from_tensor_slices(Test)
 
+
     Train = create_data_loader(Train, train_type='train', data_type=model_type)
     Val = create_data_loader(Val, train_type='validation', data_type=model_type)
     Test = create_data_loader(Test, train_type='test', data_type=model_type)
+   
 
     return Train, Val, Test
