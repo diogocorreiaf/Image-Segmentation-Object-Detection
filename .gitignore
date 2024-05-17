@@ -4,3 +4,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+my_logs/
+saved_models/
+image_for_testing/
