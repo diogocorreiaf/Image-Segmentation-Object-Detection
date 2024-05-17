@@ -115,6 +115,8 @@ def compute_iou(boxes1,boxes2):
     return tf.clip_by_value((inter_square/union_square),0.0,1.0)
 
 
+# TODO Alter the model, make a tuner function to customize the hyperparemeters
+
 def create_detection_model(base_model):
     model = tf.keras.Sequential([
         base_model,

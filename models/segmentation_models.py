@@ -1,6 +1,9 @@
 import tensorflow as tf
 
 
+# TODO Alter the model, make a tuner function to customize the hyperparemeters
+
+
 def FCN_VGG8(Img_Width,Img_Height,num_classes):
 
   Input = tf.keras.layers.Input(shape = [Img_Width,Img_Height,3])
