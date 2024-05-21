@@ -11,6 +11,9 @@ from utils.utils import get_path
 from models.detection_models import yolo_loss,define_base_model
 from models.segmentation_models import create_segmentation_model
 
+
+
+
 def get_callbacks():
     EarlyStop = tf.keras.callbacks.EarlyStopping(patience = 10,restore_best_weights=True)
     checkpoint_path = os.path.join(os.curdir,"checkpoint")
@@ -21,6 +24,11 @@ def get_callbacks():
     return EarlyStop, Checkpoint, Tensorboard, checkpoint_path
 
 def log_model_performance(model, test, test_loss, test_acc):
+
+
+    os.makedirs('saved_models', exist_ok=True)
+    logging.basicConfig(filename=f'saved_models/{model_name}.log', level=logging.INFO)
+
     y_pred = np.argmax(model.predict(test), axis=-1)
     y_true = np.argmax(test, axis=-1)
     cm = confusion_matrix(y_true, y_pred)
@@ -54,7 +62,6 @@ def train_detection_model(model, Train, Val, Batchsize=2, Epochs=100):
 
     lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
-    # Define the model checkpoint callback
     checkpoint_filepath = '/content/drive/MyDrive/Bang/yolo_efficientnet_b1_new.h5'
     callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -64,13 +71,11 @@ def train_detection_model(model, Train, Val, Batchsize=2, Epochs=100):
         save_best_only=True
     )
 
-    # Compile the model
     model.compile(
         loss=yolo_loss,
         optimizer=tf.keras.optimizers.Adam(1e-3),
     )
 
-    # Train the model
     history = model.fit(
         Train,
         validation_data=Val,
@@ -84,7 +89,8 @@ def train_detection_model(model, Train, Val, Batchsize=2, Epochs=100):
 
 
 def train_models(task, model_name, train, val, test):
-    logging.basicConfig(filename=f'{model_name}.log', level=logging.INFO)
+
+
     if task == 'segmentation':
         # Set Training Precision
         mixed_precision.set_global_policy('mixed_float16')
@@ -95,7 +101,7 @@ def train_models(task, model_name, train, val, test):
         gc.enable()
         model, history = train_segmentation_model(model, train, val)
         test_loss, test_acc = model.evaluate(test)
-        model.save(f'{model_name}.h5')
+        os.makedirs('saved_models', exist_ok=True)
 
         # Log the information
         log_model_performance(model, test, test_loss, test_acc)
@@ -109,7 +115,7 @@ def train_models(task, model_name, train, val, test):
         gc.enable()
         model, history = train_detection_model(model, train, val)
         test_loss, test_acc = model.evaluate(test)
-        model.save(f'{model_name}.h5')
+        os.makedirs('saved_models', exist_ok=True)
 
         # Log the information
         log_model_performance(model, test, test_loss, test_acc)

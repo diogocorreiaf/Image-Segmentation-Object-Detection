@@ -4,42 +4,47 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 
-#TODO preprocessing the image before testing against the model, and test to see if it actually works
 
 def segmentation_model_test(im_path, model_name):
-    model = load_model(model_name)
+    model = load_model(f'saved_models/{model_name}')
 
-    img = load_img(im_path, target_size=(model.input_shape[1], model.input_shape[2]))
+    # Preprocess the image
+    original_img = load_img(im_path)
+    original_size = original_img.size
+    img = original_img.resize((224, 224))
     img_array = img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
 
     pred = model.predict(img_array)
     pred = np.argmax(pred, axis=-1) 
 
-    plt.imshow(pred[0], cmap='jet')
+    # Post Processing
+    pred_resized = zoom(pred[0], (original_size[0]/224, original_size[1]/224), order=1)
+
+    plt.imshow(pred_resized, cmap='jet')
     plt.show()
 
 def detection_model_test(im_path, model_name):
-    model = load_model(model_name)
+    model = load_model(f'saved_models/{model_name}')
 
-    img = load_img(im_path, target_size=(model.input_shape[1], model.input_shape[2]))
+    original_img = load_img(im_path)
+    original_size = original_img.size
+    img = original_img.resize((224, 224))
     img_array = img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
 
-    # Predict the bounding boxes and class labels
     pred = model.predict(img_array)
 
-    # Postprocess the predictions
     boxes, scores, classes, nums = pred
     boxes, scores, classes, nums = boxes[0], scores[0], classes[0], nums[0]
 
-    # Display the image with bounding boxes
+    boxes = boxes * [original_size[0]/224, original_size[1]/224, original_size[0]/224, original_size[1]/224]
+
     img = cv2.imread(im_path)
     img = draw_outputs(img, (boxes, scores, classes, nums), class_names)
     cv2.imshow('Output', img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
 
 def testing_models(task, im_path, model_name):
 

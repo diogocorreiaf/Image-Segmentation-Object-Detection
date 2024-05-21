@@ -7,7 +7,7 @@ from dataset_preprocessing.data_loading import load_and_shuffle_data, create_dat
 from dataset_preprocessing.data_preprocessing import create_data_loader
 from utils.utils import dataset_randomizer, get_path
 from training.train import train_models
-from testing.testing import testing_models
+from testing.test import testing_models
 
 # Define Path to Dataset
 dataset_path = '/mnt/c/Users/diogo/Documents/UVT/THESIS/Dataset'
