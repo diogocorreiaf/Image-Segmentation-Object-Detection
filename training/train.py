@@ -14,9 +14,6 @@ from models.segmentation_models import create_segmentation_model
 
 
 
-
-
-
 def log_model_performance(model, model_name, test, test_loss, test_acc):
     os.makedirs('saved_models', exist_ok=True)
     logging.basicConfig(filename=f'saved_models/{model_name}.log', level=logging.INFO)
@@ -102,22 +99,22 @@ def train_models(task, model_name, train, val, test):
 
     # Step 5: Train the model
     if task == 'segmentation':
-        history = model.fit(train, validation_data=val, batch_size=1, epochs=2, callbacks=[EarlyStop, Checkpoint, Tensorboard])
+        history = model.fit(train, validation_data=val, batch_size=3, epochs=100, callbacks=[EarlyStop, Checkpoint, Tensorboard])
         best_checkpoint = Checkpoint.filepath.format(epoch=EarlyStop.stopped_epoch, val_loss=min(history.history['val_loss']))
-        #model.load_weights(best_checkpoint)
+        model.load_weights(best_checkpoint)
     elif task == 'detection':
         model, history = train_detection_model(model, train, val)
 
     test_loss, test_accuracy = model.evaluate(test)
-    print("Contents of Test:", test)
     print(f"Test Loss: {test_loss}")
     print(f"Test Accuracy: {test_accuracy}")
 
-    # Step 6: Log the model performance
     log_model_performance(model, model_name, test, test_loss, test_accuracy)
 
     os.makedirs('saved_models', exist_ok=True)
     model.save(os.path.join('saved_models', model_name + '.keras'))
+
+
 
 def get_callbacks():
     EarlyStop = tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
