@@ -259,7 +259,7 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=2, BUFFER_SIZE
             data = dataset.map(lambda x: detect_preprocess(x, is_training=False), num_parallel_calls=tf.data.AUTOTUNE)
 
 
-    data = data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
+    data = data.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
     data = data.prefetch(buffer_size = tf.data.AUTOTUNE)
     
 
