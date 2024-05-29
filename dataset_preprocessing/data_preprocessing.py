@@ -56,6 +56,8 @@ def preprocess(img, y):
     return img, labels
 
 def preprocess_xml(filename):
+    if isinstance(filename, np.ndarray):
+        filename = filename.item()  # Convert numpy ndarray to native Python type
     tree = ET.parse(filename)
     root = tree.getroot()
     size_tree = root.find('size')
@@ -103,7 +105,7 @@ def generate_output(bounding_boxes):
     output_label[i,j,0:5]=[1.,grid_x%1,grid_y%1,bounding_boxes[...,b,2],bounding_boxes[...,b,3]]
     output_label[i,j,5+int(bounding_boxes[...,b,4])]=1.
 
-  return tf.convert_to_tensor(output_label,tf.float32)
+  return tf.convert_to_tensor(output_label,tf.float16)
 
 def Create_Mask(Img):
     '''
@@ -171,21 +173,20 @@ def detect_preprocess_augment(Instance, is_training):
     '''
     Img = Image.open(Instance[0].numpy())
     Img = Img.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
+    Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
 
     bboxes = tf.numpy_function(func=preprocess_xml, inp=[Instance[1]], Tout=tf.float32)
 
     if is_training:
-        img = tf.image.random_brightness(img, max_delta=50.)
-        img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
-        img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
-        img = tf.clip_by_value(img, 0, 255)
+        Img = tf.image.random_brightness(Img, max_delta=50.)
+        Img = tf.image.random_saturation(Img, lower=0.5, upper=1.5)
+        Img = tf.image.random_contrast(Img, lower=0.5, upper=1.5)
+        Img = tf.clip_by_value(Img, 0, 255)
 
-    bboxes=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
+    Img = tf.cast(Img, dtype=tf.float16)
+    bboxes=tf.numpy_function(func=generate_output, inp=[bboxes], Tout=(tf.float32))
 
-    return Img, bboxes
-
-
-
+    return Normalization(Img), bboxes
 
 
 

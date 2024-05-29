@@ -142,6 +142,7 @@ def create_detection_model(base_model):
 
         tf.keras.layers.Reshape((int(SPLIT_SIZE),int(SPLIT_SIZE),OUTPUT_DIM))
     ])
+    model.compile(loss=yolo_loss, optimizer=tf.keras.optimizers.Adam(1e-3))
     return model
 
 def define_base_model():

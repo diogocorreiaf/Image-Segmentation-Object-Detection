@@ -19,7 +19,7 @@ def main():
     if action == 'train':
         model_name = input("Enter a name for the model: ")
         
-        task = input("Enter the task you want to run (either 'segmentation' or 'detection'): ")
+        task = input("Enter the task you want to run either segmentation or detection: ")
         dataset_randomizer(dataset_path)
         Train, Val, Test = load_and_shuffle_data(dataset_path, task)
         Train, Val, Test = create_datasets(Train, Val, Test, task)
@@ -27,7 +27,7 @@ def main():
         
     elif action == 'load':
         model_name = input("Enter the name of the model: ")
-        task = input("Enter the task you want to run (either 'segmentation' or 'detection'):")
+        task = input("Enter the task you want to run either segmentation' or 'detection:")
         img_name = input("Enter the path to the image you want to test: ")
         im_path = os.path.join("image_for_testing", img_name)
         testing_models(task, im_path, model_name)

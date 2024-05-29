@@ -22,8 +22,8 @@ def dataset_randomizer(dataset_path):
     random.shuffle(lines)
 
     total_lines = len(lines)
-    train_lines = int(total_lines * 0.7)
-    validation_lines = int(total_lines * 0.15)
+    train_lines = int(total_lines * 0.65)
+    validation_lines = int(total_lines * 0.2)
 
     with open(train_path, 'w') as train_file:
         train_file.truncate(0)

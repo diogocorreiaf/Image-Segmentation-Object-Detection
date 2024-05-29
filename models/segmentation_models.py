@@ -5,7 +5,6 @@ import tensorflow as tf
 
 
 def FCN_VGG8(Img_Width,Img_Height,num_classes):
-
   Input = tf.keras.layers.Input(shape = [Img_Width,Img_Height,3])
   Conv1 = tf.keras.layers.Conv2D(64,kernel_size=3,strides = 1,padding="same",activation="relu")(Input)
   Conv2 = tf.keras.layers.Conv2D(64,kernel_size=3,strides = 1,padding="same",activation="relu")(Conv1)
@@ -40,7 +39,6 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
   # Classification Score Layer
   Score = tf.keras.layers.Conv2D(num_classes,kernel_size=1,activation="relu")(FC_Drop2)
  
-
   #Upsample Pool4
 
   Upscore = tf.keras.layers.Conv2DTranspose(num_classes,kernel_size=4,strides=2,kernel_initializer="zeros")(Score)
@@ -52,7 +50,6 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
   
   Upsampled_Pool4 = tf.keras.layers.Conv2DTranspose(num_classes,kernel_size=4,strides=2,kernel_initializer="zeros")(Fused)
 
-  
   # Upsample Pool3
 
   Conv_Scale2 = tf.keras.layers.Conv2D(num_classes,kernel_size=1)(Pool3)
@@ -79,9 +76,8 @@ def create_segmentation_model():
 
   for layers in model.layers[:19]:
       layers.trainable = False
-
+      
+  tf.keras.backend.clear_session()
   MeanIou = tf.keras.metrics.MeanIoU(num_classes=21)
-  model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=1e-4,momentum=0.9),
-            loss=tf.keras.losses.categorical_crossentropy,
-            metrics=[MeanIou])
+  model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=1e-4,momentum=0.9),loss=tf.keras.losses.categorical_crossentropy, metrics=[MeanIou])
   return model

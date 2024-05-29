@@ -8,3 +8,4 @@ __pycache__/
 my_logs/
 saved_models/
 image_for_testing/
+checkpoint/

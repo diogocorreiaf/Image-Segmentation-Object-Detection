@@ -4,11 +4,12 @@ import gc
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from tensorflow import keras
 from keras import mixed_precision
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
 from utils.utils import get_path
-from models.detection_models import yolo_loss,define_base_model
+from models.detection_models import yolo_loss,define_base_model, create_detection_model
 from models.segmentation_models import create_segmentation_model
 
 
@@ -33,13 +34,6 @@ def log_model_performance(model, model_name, test, test_loss, test_acc):
     logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
     logging.info(f'Test loss: {test_loss}, Test accuracy: {test_acc}')
     model.summary(print_fn=logging.info)
-
-def train_segmentation_model(model, Train, Val, Batchsize=1, Epochs=2):
-    EarlyStop, Checkpoint, Tensorboard, checkpoint_path = get_callbacks()
-    history = model.fit(Train, validation_data=Val, batch_size=1, epochs=Epochs, callbacks=[EarlyStop, Checkpoint, Tensorboard])
-    model.load_weights(checkpoint_path)
-    return model, history
-
 
 def train_detection_model(model, Train, Val, Batchsize=2, Epochs=50):
     def scheduler(epoch, lr):
@@ -98,12 +92,9 @@ def train_models(task, model_name, train, val, test):
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     # Step 5: Train the model
-    if task == 'segmentation':
-        history = model.fit(train, validation_data=val, batch_size=3, epochs=100, callbacks=[EarlyStop, Checkpoint, Tensorboard])
-        best_checkpoint = Checkpoint.filepath.format(epoch=EarlyStop.stopped_epoch, val_loss=min(history.history['val_loss']))
-        model.load_weights(best_checkpoint)
-    elif task == 'detection':
-        model, history = train_detection_model(model, train, val)
+    history = model.fit(train, validation_data=val, batch_size=2, epochs=10, callbacks=[EarlyStop, Checkpoint, Tensorboard])
+    best_checkpoint = Checkpoint.filepath.format(epoch=EarlyStop.stopped_epoch, val_loss=min(history.history['val_loss']))
+    model.load_weights(best_checkpoint)
 
     test_loss, test_accuracy = model.evaluate(test)
     print(f"Test Loss: {test_loss}")
@@ -114,18 +105,16 @@ def train_models(task, model_name, train, val, test):
     os.makedirs('saved_models', exist_ok=True)
     model.save(os.path.join('saved_models', model_name + '.keras'))
 
+    pd.DataFrame(history.history).plot(figsize = (10,8))
+    plt.grid('True')
+    plt.savefig("Model_Learning_Curve.png")
+    plt.show()
+
 
 
 def get_callbacks():
-    EarlyStop = tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
-    checkpoint_dir = "saved_models/checkpoints"
-    checkpoint_path = os.path.join(checkpoint_dir, "weights.{epoch:02d}-{val_loss:.2f}.keras")
-    Checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_path,
-        save_weights_only=True,
-        monitor='val_loss',
-        mode='min',
-        save_best_only=True)
-    board_log_path = get_path()
-    Tensorboard = tf.keras.callbacks.TensorBoard(board_log_path)
-    return EarlyStop, Checkpoint, Tensorboard, checkpoint_path
+    EarlyStop = tf.keras.callbacks.EarlyStopping(patience = 10,restore_best_weights=True)
+    checkpoint_path = os.path.join(os.curdir,"checkpoint")
+    Checkpoint = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,save_best_only=True)
+    Tensorboard = tf.keras.callbacks.TensorBoard(get_path())
+    return  EarlyStop, Checkpoint, Tensorboard, checkpoint_path
