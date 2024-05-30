@@ -11,30 +11,51 @@ from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_
 from utils.utils import get_path
 from models.detection_models import yolo_loss,define_base_model, create_detection_model
 from models.segmentation_models import create_segmentation_model
+from collections import Counter
 
 
 
 
 def log_model_performance(model, model_name, test, test_loss, test_acc):
     os.makedirs('saved_models', exist_ok=True)
-    logging.basicConfig(filename=f'saved_models/{model_name}.log', level=logging.INFO)
+    
+    # Configure logging to avoid duplicate log entries
+    logger = logging.getLogger()
+    if not logger.hasHandlers():
+        logging.basicConfig(filename=f'saved_models/{model_name}.log', level=logging.INFO)
+    
+    y_true_all = []
+    y_pred_all = []
 
-    for test_images, test_masks in test: 
+    for test_images, test_masks in test:
         y_pred = np.argmax(model.predict(test_images), axis=-1)
-        y_true = np.argmax(test_masks, axis=-1) 
-        cm = confusion_matrix(y_true.flatten(), y_pred.flatten()) 
-        precision = precision_score(y_true.flatten(), y_pred.flatten(), average='weighted')
-        recall = recall_score(y_true.flatten(), y_pred.flatten(), average='weighted')
-        f1 = f1_score(y_true.flatten(), y_pred.flatten(), average='weighted') 
-        logging.info(f'Confusion Matrix: {cm}')
-        logging.info(f'Precision: {precision}')
-        logging.info(f'Recall: {recall}')
-        logging.info(f'F1 Score: {f1}')
+        y_true = np.argmax(test_masks, axis=-1)
+        y_pred_all.extend(y_pred.flatten())
+        y_true_all.extend(y_true.flatten())
 
+    y_true_all = np.array(y_true_all)
+    y_pred_all = np.array(y_pred_all)
+    
+    cm = confusion_matrix(y_true_all, y_pred_all)
+    precision = precision_score(y_true_all, y_pred_all, average='weighted')
+    recall = recall_score(y_true_all, y_pred_all, average='weighted')
+    f1 = f1_score(y_true_all, y_pred_all, average='weighted')
+    
+    logging.info(f'Confusion Matrix: \n{cm}')
+    logging.info(f'Precision: {precision:.4f}')
+    logging.info(f'Recall: {recall:.4f}')
+    logging.info(f'F1 Score: {f1:.4f}')
+    
+    # Log class distribution
+    true_class_counts = Counter(y_true_all)
+    pred_class_counts = Counter(y_pred_all)
+    logging.info(f'True class distribution: {true_class_counts}')
+    logging.info(f'Predicted class distribution: {pred_class_counts}')
+    
     logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
-    logging.info(f'Test loss: {test_loss}, Test accuracy: {test_acc}')
+    logging.info(f'Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}')
+    
     model.summary(print_fn=logging.info)
-
 def train_detection_model(model, Train, Val, Batchsize=2, Epochs=50):
     def scheduler(epoch, lr):
         if epoch < 40:
@@ -92,7 +113,7 @@ def train_models(task, model_name, train, val, test):
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     # Step 5: Train the model
-    history = model.fit(train, validation_data=val, batch_size=2, epochs=10, callbacks=[EarlyStop, Checkpoint, Tensorboard])
+    history = model.fit(train, validation_data=val, batch_size=2, epochs=2, callbacks=[EarlyStop, Checkpoint, Tensorboard])
     best_checkpoint = Checkpoint.filepath.format(epoch=EarlyStop.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
 
