@@ -4,7 +4,9 @@ import numpy as np
 root_dir = os.path.join(os.curdir,"my_logs")
 
 
-def dataset_randomizer(dataset_path):
+dataset_path = '/mnt/c/Users/diogo/Documents/UVT/THESIS/Dataset'
+
+def dataset_randomizer(test_ratio = 0.65, val_ratio = 0.2):
     ''' Randomizes the Dataset, acesses the trainval.txt and splits it between the train, val and test.txt file
         
         Args:
@@ -22,8 +24,8 @@ def dataset_randomizer(dataset_path):
     random.shuffle(lines)
 
     total_lines = len(lines)
-    train_lines = int(total_lines * 0.65)
-    validation_lines = int(total_lines * 0.2)
+    train_lines = int(total_lines * test_ratio)
+    validation_lines = int(total_lines * val_ratio)
 
     with open(train_path, 'w') as train_file:
         train_file.truncate(0)

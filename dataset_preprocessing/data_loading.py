@@ -2,12 +2,13 @@ import os
 import  xml.etree.ElementTree as ET
 import tensorflow as tf
 from dataset_preprocessing.data_preprocessing import create_data_loader
+from utils.utils import dataset_path
 
 Pascal_VOC_classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
 
 
 
-def load_image_seg_class_paths(dataset_path, dataset_type):
+def load_image_seg_class_paths(dataset_type):
     """
     Pairs Images and the corresponding segmentation class image from the dataset path
 
@@ -41,7 +42,7 @@ def load_image_seg_class_paths(dataset_path, dataset_type):
 
 
 
-def load_image_annotations(dataset_path, dataset_type ):
+def load_image_annotations(dataset_type ):
     """
     Pairs Images and the corresponding annotations from the dataset path
 
@@ -74,15 +75,15 @@ def load_image_annotations(dataset_path, dataset_type ):
 
 
 
-def load_and_shuffle_data(dataset_path, model_type):
+def load_and_shuffle_data(model_type):
     if model_type == 'segmentation':
-        Train = load_image_seg_class_paths(dataset_path, dataset_type='train')
-        Val = load_image_seg_class_paths(dataset_path, dataset_type='validation')
-        Test = load_image_seg_class_paths(dataset_path, dataset_type='test')
+        Train = load_image_seg_class_paths(dataset_type='train')
+        Val = load_image_seg_class_paths( dataset_type='validation')
+        Test = load_image_seg_class_paths( dataset_type='test')
     elif model_type == 'detection':
-        Train = load_image_annotations(dataset_path, dataset_type='train')
-        Val = load_image_annotations(dataset_path, dataset_type='validation')
-        Test = load_image_annotations(dataset_path, dataset_type='test')
+        Train = load_image_annotations(dataset_type='train')
+        Val = load_image_annotations(dataset_type='validation')
+        Test = load_image_annotations(dataset_type='test')
     else:
         raise ValueError("Invalid model_type. Use 'segmentation' or 'detection'.")
     Train = tf.random.shuffle(Train)

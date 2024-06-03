@@ -4,13 +4,10 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from dataset_preprocessing.data_loading import load_and_shuffle_data, create_datasets
-from dataset_preprocessing.data_preprocessing import create_data_loader
 from utils.utils import dataset_randomizer, get_path
 from training.train import train_models
 from testing.test import testing_models
 
-# Define Path to Dataset
-dataset_path = '/mnt/c/Users/diogo/Documents/UVT/THESIS/Dataset'
 
 
 def main():
@@ -20,8 +17,8 @@ def main():
         model_name = input("Enter a name for the model: ")
         
         task = input("Enter the task you want to run either segmentation or detection: ")
-        dataset_randomizer(dataset_path)
-        Train, Val, Test = load_and_shuffle_data(dataset_path, task)
+        dataset_randomizer()
+        Train, Val, Test = load_and_shuffle_data(task)
         Train, Val, Test = create_datasets(Train, Val, Test, task)
         train_models(task, model_name, Train, Val, Test)
         
