@@ -1,4 +1,6 @@
 import tensorflow as tf
+from functools import partial
+
 
 NUM_FILTERS=512
 B=2

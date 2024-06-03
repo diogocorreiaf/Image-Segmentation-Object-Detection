@@ -3,7 +3,6 @@ logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
 import albumentations as A
-import tensorflow as tf
 import xml.etree.ElementTree as ET
 import numpy as np
 import cv2
@@ -232,7 +231,48 @@ def detect_preprocess(Instance, is_training):
 
     return Img, bboxes
 
+def Create_Mask_Augment(Instance):
+    Img = Image.open(Instance[0].numpy())
+    Img = Img.resize((Img_Width,Img_Height),resample = Image.BILINEAR)
+    Img = np.asarray(Img)
 
+    Mask = Image.open(Instance[1].numpy())
+    Mask = Mask.resize((Img_Width,Img_Height),resample = Image.BILINEAR)
+    Mask = np.asarray(Mask)  
+    
+    Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
+
+    if tf.random.uniform(()) > 0.5:  # Applying data Augmentation
+        aug = RandomRotate90(p=0.5)
+        Augmented = aug(image = Img,mask = Mask)
+
+        Img = Augmented["image"]
+        Mask = Augmented["mask"]
+  
+    return Normalization(Img),Create_Mask(Mask)
+        
+def Create_Mask_NonAugment(Instance):
+    Img = Image.open(Instance[0].numpy())
+    Img = Img.resize((Img_Width,Img_Height),resample = Image.BILINEAR)
+    Img = np.asarray(Img)
+
+    Mask = Image.open(Instance[1].numpy())
+    Mask = Mask.resize((Img_Width,Img_Height),resample = Image.BILINEAR)
+    Mask = np.asarray(Mask)  
+    
+    Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
+    
+    return Normalization(Img),Create_Mask(Mask)
+    
+def Seg_Augment_Preprocess(Instance):
+    Img,Mask = tf.py_function(Create_Mask_Augment,[Instance],[tf.float16,tf.float16])
+    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes])  
+
+def Seg_Preprocess(Instance):
+    Img,Mask = tf.py_function(Create_Mask_NonAugment,[Instance],[tf.float16,tf.float16])
+    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes])  
+
+    
 
 def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=2, BUFFER_SIZE=2):
     '''
@@ -246,13 +286,16 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=2, BUFFER_SIZE
     Returns:
     - tf.data.Dataset: A TensorFlow dataset pipeline for training or validation.
     '''
-
+    
     if(data_type == 'segmentation'):
         if(train_type == 'train') :
-            data = dataset.map(lambda x: seg_preprocess(x, is_training=True), num_parallel_calls=tf.data.AUTOTUNE)
-        else:
-            data = dataset.map(lambda x: seg_preprocess(x, is_training=False), num_parallel_calls=tf.data.AUTOTUNE)
+            #data = dataset.map(lambda x: seg_preprocess(x, is_training=True), num_parallel_calls=tf.data.AUTOTUNE)
+            data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
 
+        else:
+            #data = dataset.map(lambda x: seg_preprocess(x, is_training=False), num_parallel_calls=tf.data.AUTOTUNE)
+            data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
+    
     elif(data_type == 'detection'):
         if(train_type == 'train') :
             data = dataset.map(lambda x: detect_preprocess(x, is_training=True), num_parallel_calls=tf.data.AUTOTUNE)
