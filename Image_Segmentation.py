@@ -7,9 +7,11 @@ from utils.utils import dataset_randomizer
 from dataset_preprocessing.data_loading import load_and_shuffle_data, create_datasets
 from models.segmentation_models import create_segmentation_model
 from training.train import train_segmentation_model
+from testing.test import gui_segmentation_model_test
 
-model_files = os.listdir('saved_models/segmentation_models')
+model_files = [f for f in os.listdir('saved_models/segmentation_models') if f.endswith('.keras')]
 task = "segmentation"
+
 
 
 
@@ -36,9 +38,29 @@ def train_model(model_name, batch_size, epochs):
     train_segmentation_model(model,model_name, Train, Val, Test, batch_size, epochs)
     return "Model trained successfully."
     
+def predict_model(loaded_model, testing_img):
+    output = gui_segmentation_model_test(loaded_model, testing_img)
+    return output    
     
-    
-    
+def reset_values():
+    train_split_value.value = 0.6
+    val_split_value.value = 0.2
+    learning_rate.value = 1e-4
+    momentum.value = 0.9
+    optimizer.value = "SGD"
+    dropout_rate.value = 0.5
+    activation.value = "relu"
+    kernel_initializer.value = "zeros"
+    transfer_learning.value = False
+    model_name.value = ""
+    epochs.value = 50
+    batch_size.value = 2
+    loaded_model.value = model_files[0] if model_files else None
+    testing_img.value = None
+    return "Values reset to default."
+
+
+
 with gr.Blocks(title="Image Segmentation") as image_segmentation:
     #with gr.Column(min_width=400, scale=1):
         with gr.Row():
@@ -75,7 +97,9 @@ with gr.Blocks(title="Image Segmentation") as image_segmentation:
                 loaded_model = gr.Dropdown(label="Select Model", choices=model_files)
                 testing_img = gr.Image(label="Test Image") 
                 predict_btn = gr.Button("Predict")  
-                
+                predict_btn.click(predict_model, inputs=[loaded_model, testing_img], outputs=gr.Image(label="Segmented Image", format="png"))
+            
+  
                            
 if __name__ == "__main__":
     image_segmentation.launch()
