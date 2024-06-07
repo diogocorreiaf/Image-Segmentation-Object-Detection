@@ -4,7 +4,7 @@ import tensorflow as tf
 # TODO Alter the model, make a tuner function to customize the hyperparemeters
 
 
-def FCN_VGG8(Img_Width,Img_Height,num_classes):
+def FCN_VGG8(Img_Width,Img_Height,num_classes, dropout_rate = 0.5, activation = "relu", kernel_initializer = "zeros"  ):
   Input = tf.keras.layers.Input(shape = [Img_Width,Img_Height,3])
   Conv1 = tf.keras.layers.Conv2D(64,kernel_size=3,strides = 1,padding="same",activation="relu")(Input)
   Conv2 = tf.keras.layers.Conv2D(64,kernel_size=3,strides = 1,padding="same",activation="relu")(Conv1)
@@ -32,9 +32,9 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
   # Fully Convolutional Layer
 
   FC_Layer = tf.keras.layers.Conv2D(4096,kernel_size=7,activation="relu")(Pool5)
-  FC_Drop = tf.keras.layers.Dropout(rate=0.5)(FC_Layer)
+  FC_Drop = tf.keras.layers.Dropout(rate=dropout_rate)(FC_Layer)
   FC_Layer2 = tf.keras.layers.Conv2D(4096,kernel_size=1,activation="relu")(FC_Drop)
-  FC_Drop2 = tf.keras.layers.Dropout(rate=0.5)(FC_Layer2)
+  FC_Drop2 = tf.keras.layers.Dropout(rate=dropout_rate)(FC_Layer2)
 
   # Classification Score Layer
   Score = tf.keras.layers.Conv2D(num_classes,kernel_size=1,activation="relu")(FC_Drop2)
@@ -67,17 +67,30 @@ def FCN_VGG8(Img_Width,Img_Height,num_classes):
 
 
 
-def create_segmentation_model():
-  model = FCN_VGG8(224,224,21)
-  VGG16 = tf.keras.applications.vgg16.VGG16(weights='imagenet')
+def create_segmentation_model(transfer_learning=True, learning_rate=1e-4, momentum=0.9, optimizer_name='SGD', dropout_rate=0.5, activation='relu', kernel_initializer='zeros'):
+    model = FCN_VGG8(224, 224, 21, dropout_rate, activation, kernel_initializer)
+    
+    VGG16 = tf.keras.applications.vgg16.VGG16(weights='imagenet')
+    if transfer_learning:
+        for i in range(19):
+            model.layers[i].set_weights(VGG16.layers[i].get_weights())
 
-  for i in range(19):
-      model.layers[i].set_weights(VGG16.layers[i].get_weights())
+        for layers in model.layers[:19]:
+            layers.trainable = False
 
-  for layers in model.layers[:19]:
-      layers.trainable = False
-      
-  tf.keras.backend.clear_session()
-  MeanIou = tf.keras.metrics.MeanIoU(num_classes=21)
-  model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=1e-4,momentum=0.9),loss=tf.keras.losses.categorical_crossentropy, metrics=[MeanIou])
-  return model
+    tf.keras.backend.clear_session()
+    MeanIou = tf.keras.metrics.MeanIoU(num_classes=21)
+
+    if optimizer_name == 'SGD':
+        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
+    elif optimizer_name == 'Adam':
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    elif optimizer_name == 'RMSProp':
+        optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum)
+    elif optimizer_name == 'Adagrad':
+        optimizer = tf.keras.optimizers.Adagrad(learning_rate=learning_rate)
+    elif optimizer_name == 'Nadam':
+        optimizer = tf.keras.optimizers.Nadam(learning_rate=learning_rate)
+
+    model.compile(optimizer=optimizer, loss=tf.keras.losses.categorical_crossentropy, metrics=[MeanIou])
+    return model

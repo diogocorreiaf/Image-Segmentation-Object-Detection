@@ -106,41 +106,55 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     
     
 def train_detection_model(model, Train, Val, Batchsize=2, Epochs=50):
-    def scheduler(epoch, lr):
-        if epoch < 40:
-            return 1e-3
-        elif epoch >= 40 and epoch < 80:
-            return 5e-4
-        else:
-            return 1e-4
+    #Set callbacks
+    mixed_precision.set_global_policy('mixed_float16')
+    gc.collect()
+    gc.enable()
+    
+    Early, Ceckpoint, Tensorboard, checkpoint_path = get_callbacks()
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+    
+    #Train model
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard])
+    best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
+    model.load_weights(best_checkpoint)
+    os.makedirs('saved_models/detection_models', exist_ok=True)
+    
+    #Logging the model
+    test_loss = model.evaluate(Test)
+    model.save(os.path.join('saved_models/detection_models', model_name + '.keras'))
+    log_det_model_performance(model, model_name, Test, test_loss)
+    pd.DataFrame(history.history).plot(figsize = (10,8))
+    plt.grid('True')
+    plt.savefig("Model_Learning_Curve.png")
+    plt.show()
 
-    lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
-    checkpoint_filepath = '/content/drive/MyDrive/Bang/yolo_efficientnet_b1_new.h5'
-    callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_filepath,
-        save_weights_only=True,
-        monitor='val_loss',
-        mode='min',
-        save_best_only=True
-    )
 
-    model.compile(
-        loss=yolo_loss,
-        optimizer=tf.keras.optimizers.Adam(1e-3),
-    )
 
-    history = model.fit(
-        Train,
-        validation_data=Val,
-        batch_size=Batchsize,
-        verbose=1,
-        epochs=Epochs,
-        callbacks=[lr_callback, callback]
-    )
-
-    return model, history
-
+def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize=2, Epochs=50):
+    #Set callbacks
+    mixed_precision.set_global_policy('mixed_float16')
+    gc.collect()
+    gc.enable()
+    
+    Early, Ceckpoint, Tensorboard, checkpoint_path = get_callbacks()
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+    
+    #Train model
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard])
+    best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
+    model.load_weights(best_checkpoint)
+    os.makedirs('saved_models/segmentation_models', exist_ok=True)
+    
+    #Logging the model
+    test_loss, test_accuracy = model.evaluate(Test)
+    model.save(os.path.join('saved_models', model_name + '.keras'))
+    log_seg_model_performance(model, model_name, Test, test_loss, test_accuracy)
+    pd.DataFrame(history.history).plot(figsize = (10,8))
+    plt.grid('True')
+    plt.savefig("Model_Learning_Curve.png")
+    plt.show()
 
 def train_models(task, model_name, train, val, test):
     mixed_precision.set_global_policy('mixed_float16')
