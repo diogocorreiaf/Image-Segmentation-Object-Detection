@@ -7,6 +7,8 @@ from keras.preprocessing.image import load_img, img_to_array
 import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
 from models.detection_models import yolo_loss
+import matplotlib.colors as mcolors
+from PIL import Image
 
 
 def segmentation_model_test(im_path, model_name, img_width=224, img_height=224):
@@ -39,6 +41,29 @@ def segmentation_model_test(im_path, model_name, img_width=224, img_height=224):
 
     plt.show()
 
+def gui_segmentation_model_test(model_name, original_img):
+    model = tf.keras.models.load_model(f'saved_models/segmentation_models/{model_name}')
+    original_size = original_img.shape[:2] 
+    img = cv2.resize(original_img, (224, 224)) 
+    img_array = np.expand_dims(img, axis=0) / 255.0 
+
+    pred = model.predict(img_array)
+    pred = pred.squeeze() 
+    pred = np.argmax(pred, axis=-1) 
+    pred_resized = zoom(pred, (original_size[0]/224, original_size[1]/224), order=1) 
+
+    # Normalize to 0-1
+    pred_resized = pred_resized / pred_resized.max()
+
+    # Apply colormap
+    cmap = plt.get_cmap('jet')
+    pred_resized = cmap(pred_resized)
+
+    # Convert to uint8 and save
+    pred_resized = (pred_resized * 255).astype('uint8')
+    Image.fromarray(pred_resized).save('output.png')
+
+    return pred_resized
 
 def process_output(pred):
     grid_size = pred.shape[1]
@@ -58,7 +83,6 @@ def process_output(pred):
 
     return boxes, scores, classes, nums
 
-    return boxes, scores, classes, nums
 
 def detection_model_test(im_path, model_name):
     model = tf.keras.models.load_model(f'saved_models/{model_name}.keras', custom_objects={'yolo_loss': yolo_loss})

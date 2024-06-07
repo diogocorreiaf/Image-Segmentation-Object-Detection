@@ -7,4 +7,4 @@ app = gr.TabbedInterface([image_segmentation, object_detection], ["Image Segment
 
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(title="Image Segmentation and Object Detection")

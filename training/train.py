@@ -9,7 +9,7 @@ from tensorflow import keras
 from keras import mixed_precision
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, average_precision_score
 from utils.utils import get_path
-from models.detection_models import yolo_loss,define_base_model, create_detection_model
+from models.detection_models import create_detection_model
 from models.segmentation_models import create_segmentation_model
 from collections import Counter
 from utils.utils import calculate_iou

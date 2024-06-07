@@ -23,7 +23,7 @@ def datasetloader(train_split_value,val_split_value):
     Train, Val, Test = create_datasets(Train, Val, Test, task)
     return f"Loaded {len(Train)*2} training images, {len(Val)*2} validation images, and {len(Test)*2} test images."
 
-def create_model(transfer_learning, learning_rate, momentum, optimizer, dropout_rate, activation, kernel_initializer):
+def create_model(transfer_learning,kernel_initializer,optimizer,learning_rate,momentum):
     global model
     model = create_detection_model(transfer_learning,kernel_initializer,optimizer,learning_rate,momentum)
     if model is not None:
@@ -54,7 +54,7 @@ with gr.Blocks(title="Object Detection") as object_detection:
                 kernel_initializer = gr.Dropdown(label="Kernel Initializer", choices=["zeros", "ones", "random_normal", "random_uniform"], value="zeros") 
                 transfer_learning = gr.Checkbox(label="Trainable", info='Utilize Transfer Learning')        
                 create_model_btn = gr.Button("Create Model")
-                create_model_btn.click(create_model, inputs=[transfer_learning, learning_rate, momentum, optimizer, dropout_rate, activation, kernel_initializer], outputs=gr.Textbox(show_label=False))    
+                create_model_btn.click(create_model, inputs=[transfer_learning, learning_rate, momentum, optimizer, kernel_initializer], outputs=gr.Textbox(show_label=False))    
                        
             with gr.Column():
                 gr.Label("Model Training",show_label=False)
