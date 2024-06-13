@@ -9,8 +9,8 @@ import cv2
 from PIL import Image
 from albumentations import RandomRotate90
 
-# Pascal VOC constains 21 different classes 
-num_classes = 21
+
+
 
 # Size that Images will be resized to
 Img_Width,Img_Height = 224,224 
@@ -20,7 +20,8 @@ SPLIT_SIZE = 7
 
 # Classes in the Pascal VOC dataset
 classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
-
+num_classes_detection = len(classes)
+num_classes_segmentation = 21
 
 transforms = A.Compose([
     A.Resize(Img_Height,Img_Width),
@@ -94,7 +95,7 @@ def get_imbboxes(im_path, xml_path):
 
 
 def generate_output(bounding_boxes):
-  output_label=np.zeros((SPLIT_SIZE,SPLIT_SIZE,num_classes+5))
+  output_label=np.zeros((SPLIT_SIZE,SPLIT_SIZE,num_classes_detection+5))
   for b in range(len(bounding_boxes)):
     grid_x=bounding_boxes[...,b,0]*SPLIT_SIZE
     grid_y=bounding_boxes[...,b,1]*SPLIT_SIZE
@@ -118,8 +119,8 @@ def Create_Mask(Img):
     - tf.Tensor: Segmentation masks for each class in the input image.
      
     '''
-    Seg_Labels = np.zeros((Img.shape[0], Img.shape[1], num_classes), dtype=np.float16)
-    for class_ in range(num_classes):
+    Seg_Labels = np.zeros((Img.shape[0], Img.shape[1], num_classes_segmentation), dtype=np.float16)
+    for class_ in range(num_classes_segmentation):
         Seg_Labels[:, :, class_] = (Img == class_)
     return tf.cast(Seg_Labels, dtype=tf.float16)
 
@@ -206,7 +207,7 @@ def seg_preprocess(Instance, is_training = True):
     Img, Mask = tf.py_function(seg_preprocess_augment, [Instance, is_training], [tf.float16, tf.float16])
     
     Img = tf.ensure_shape(Img, [None, None, 3])
-    Mask = tf.ensure_shape(Mask, [None, None, num_classes]) 
+    Mask = tf.ensure_shape(Mask, [None, None, num_classes_segmentation]) 
     
     return Img, Mask
 
@@ -266,11 +267,11 @@ def Create_Mask_NonAugment(Instance):
     
 def Seg_Augment_Preprocess(Instance):
     Img,Mask = tf.py_function(Create_Mask_Augment,[Instance],[tf.float16,tf.float16])
-    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes])  
+    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes_segmentation])  
 
 def Seg_Preprocess(Instance):
     Img,Mask = tf.py_function(Create_Mask_NonAugment,[Instance],[tf.float16,tf.float16])
-    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes])  
+    return tf.ensure_shape(Img,[None,None,3]),tf.ensure_shape(Mask,[None,None,num_classes_segmentation])  
 
     
 

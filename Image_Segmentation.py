@@ -69,8 +69,8 @@ with gr.Blocks(title="Image Segmentation") as image_segmentation:
                 train_split_value = gr.Slider(minimum=0, maximum=0.9, label="Train Split Size", value=0.6)
                 val_split_value = gr.Slider(minimum=0, maximum=0.9, label="Validation Split Size", value=0.2)
                 randomize_btn = gr.Button("Loading and Preprocess Dataset")
-                randomize_btn.click(datasetloader, inputs=[train_split_value, val_split_value], outputs=gr.Textbox(show_label=False))
-                
+                out_box = gr.Textbox(show_label=False,placeholder="Tab1")
+                randomize_btn.click(fn=datasetloader, inputs=[train_split_value, val_split_value], outputs=out_box)
             
                 gr.Label("Model Definition and Hyperparemeter Tuning", show_label=False)
                 learning_rate = gr.Slider(minimum=1e-6, maximum=1e-2, label="Learning Rate", value=1e-4)
@@ -98,8 +98,3 @@ with gr.Blocks(title="Image Segmentation") as image_segmentation:
                 testing_img = gr.Image(label="Test Image") 
                 predict_btn = gr.Button("Predict")  
                 predict_btn.click(predict_model, inputs=[loaded_model, testing_img], outputs=gr.Image(label="Segmented Image", format="png"))
-            
-  
-                           
-if __name__ == "__main__":
-    image_segmentation.launch()

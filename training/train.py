@@ -9,7 +9,7 @@ from tensorflow import keras
 from keras import mixed_precision
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, average_precision_score
 from utils.utils import get_path
-from models.detection_models import create_detection_model
+from models.detection_models import create_detection_model, yolo_loss
 from models.segmentation_models import create_segmentation_model
 from collections import Counter
 from utils.utils import calculate_iou
@@ -105,8 +105,10 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     
     
     
-def train_detection_model(model, Train, Val, Batchsize=2, Epochs=50):
+def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epochs=50):
     #Set callbacks
+    
+    print("Arguments: ", model, model_name, Train, Val, Batchsize, Epochs)
     mixed_precision.set_global_policy('mixed_float16')
     gc.collect()
     gc.enable()
@@ -118,13 +120,16 @@ def train_detection_model(model, Train, Val, Batchsize=2, Epochs=50):
     history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard])
     best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
-    os.makedirs('saved_models/detection_models', exist_ok=True)
     
+    #Save model
+    os.makedirs('saved_models/detection_models', exist_ok=True)
+    model.save(os.path.join('saved_models', 'detection_models', model_name + '.keras', custom_objects={'yolo_loss': yolo_loss}))
+    print("Model saved successfully.")
     #Logging the model
     test_loss = model.evaluate(Test)
-    model.save(os.path.join('saved_models/detection_models', model_name + '.keras'))
     log_det_model_performance(model, model_name, Test, test_loss)
     pd.DataFrame(history.history).plot(figsize = (10,8))
+    
     plt.grid('True')
     plt.savefig("Model_Learning_Curve.png")
     plt.show()
@@ -145,11 +150,14 @@ def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize=2, Ep
     history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard])
     best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
+    
+    #Save Model
     os.makedirs('saved_models/segmentation_models', exist_ok=True)
+    model.save(os.path.join('saved_models', 'segmentation_models', model_name + '.keras'))
+    
     
     #Logging the model
     test_loss, test_accuracy = model.evaluate(Test)
-    model.save(os.path.join('saved_models', model_name + '.keras'))
     log_seg_model_performance(model, model_name, Test, test_loss, test_accuracy)
     pd.DataFrame(history.history).plot(figsize = (10,8))
     plt.grid('True')

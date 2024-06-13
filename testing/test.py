@@ -68,7 +68,7 @@ def gui_segmentation_model_test(model_name, original_img):
 def process_output(pred):
     grid_size = pred.shape[1]
     num_boxes = 2 
-    num_classes = 21  
+    num_classes = 20  
 
     object_masks = pred[..., 0:2]
     boxes = pred[..., 2:10]  
@@ -83,6 +83,73 @@ def process_output(pred):
 
     return boxes, scores, classes, nums
 
+def gui_detection_model_test(model_name, original_img):
+    
+    model = tf.keras.models.load_model(f'saved_models/detection_models/{model_name}',custom_objects={'yolo_loss': yolo_loss})
+    original_size = original_img.shape[:2] 
+    img = cv2.resize(original_img, (224, 224)) 
+    img_array = np.expand_dims(img, axis=0) / 255.0 
+    
+    output = model.predict(img_array),
+    
+    THRESH = 0.25
+    
+    object_positions = tf.concat( [tf.where(output[..., 0] >= THRESH), tf.where(output[..., 5] >= THRESH)], axis=0)
+    selected_output = tf.gather_nd(output, object_positions)
+
+    final_boxes = []
+
+    for i, pos in enumerate(object_positions):
+        for j in range(2):
+            if selected_output[i][j*5] > THRESH:
+                output_box = tf.cast(output[pos[0]][pos[1]][pos[2]][(j*5)+1:(j*5)+5], dtype=tf.float32)
+
+                x_centre = (tf.cast(pos[1], dtype=tf.float32) + output_box[0]) * 32
+                y_centre = (tf.cast(pos[2], dtype=tf.float32) + output_box[1]) * 32
+
+                x_width, y_height = tf.math.abs(H*output_box[2]), tf.math.abs(W*output_box[3])
+
+                x_min, y_min = int(x_centre - (x_width / 2)), int(y_centre - (y_height / 2))
+                x_max, y_max = int(x_centre + (x_width / 2)), int(y_centre + (y_height / 2))
+
+                if(x_min <= 0): x_min = 0
+                if(y_min <= 0): y_min = 0
+                if(x_max >= W): x_max = W
+                if(y_max >= H): y_max = H
+                final_boxes.append(
+                    [x_min, y_min, x_max, y_max,
+                    str(classes[tf.argmax(selected_output[..., 10:], axis=-1)[i]])])
+
+        final_boxes = np.array(final_boxes)
+
+        object_classes = final_boxes[..., 4]
+        nms_boxes = final_boxes[..., 0:4]
+
+        nms_output = tf.image.non_max_suppression(
+            nms_boxes, final_scores, max_output_size=100, iou_threshold=0.2,
+            score_threshold=float('-inf')
+        )
+
+        for i in nms_output:
+            cv2.rectangle(
+                img,
+                (int(final_boxes[i][0]), int(final_boxes[i][1])),
+                (int(final_boxes[i][2]), int(final_boxes[i][3])), (0, 0, 255), 1)
+            cv2.putText(
+                img,
+                final_boxes[i][-1],
+                (int(final_boxes[i][0]), int(final_boxes[i][1]) + 15),
+                cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (2, 225, 155), 1
+            )
+            
+    cmap = plt.get_cmap('jet')
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cmap(img)
+
+    # Convert to uint8 and save
+    img = (img * 255).astype('uint8')
+
+    return img
 
 def detection_model_test(im_path, model_name):
     model = tf.keras.models.load_model(f'saved_models/{model_name}.keras', custom_objects={'yolo_loss': yolo_loss})

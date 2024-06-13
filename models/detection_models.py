@@ -121,16 +121,16 @@ def compute_iou(boxes1,boxes2):
 
 def create_detection_model(transfer_learning, kernel_initializer, optimizer_name, learning_rate, momentum):
     model = yolo_model(transfer_learning, kernel_initializer,)
-
+    
     if optimizer_name == 'SGD':
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
-    elif optimizer.lower() == 'RMSProp':
+    elif optimizer_name == 'RMSProp':
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum)
-    elif optimizer.lower() == 'Adagrad':
+    elif optimizer_name == 'Adagrad':
         optimizer = tf.keras.optimizers.Adagrad(learning_rate=learning_rate)
-    elif optimizer.lower() == 'Adam':
+    elif optimizer_name == 'Adam':
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    elif optimizer.lower() == 'Nadam':
+    elif optimizer_name == 'Nadam':
         optimizer = tf.keras.optimizers.Nadam(learning_rate=learning_rate)
     else:
         raise ValueError('Invalid optimizer')
