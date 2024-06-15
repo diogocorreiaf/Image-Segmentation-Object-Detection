@@ -9,6 +9,12 @@ from scipy.ndimage import zoom
 from models.detection_models import yolo_loss
 import matplotlib.colors as mcolors
 from PIL import Image
+from keras.saving import register_keras_serializable
+
+classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
+
+Width, Height = 224, 224
+
 
 
 def segmentation_model_test(im_path, model_name, img_width=224, img_height=224):
@@ -83,21 +89,37 @@ def process_output(pred):
 
     return boxes, scores, classes, nums
 
-def gui_detection_model_test(model_name, original_img):
-    
-    model = tf.keras.models.load_model(f'saved_models/detection_models/{model_name}',custom_objects={'yolo_loss': yolo_loss})
-    original_size = original_img.shape[:2] 
-    img = cv2.resize(original_img, (224, 224)) 
-    img_array = np.expand_dims(img, axis=0) / 255.0 
-    
-    output = model.predict(img_array),
-    
-    THRESH = 0.25
-    
-    object_positions = tf.concat( [tf.where(output[..., 0] >= THRESH), tf.where(output[..., 5] >= THRESH)], axis=0)
-    selected_output = tf.gather_nd(output, object_positions)
 
+@register_keras_serializable('yolo_loss')
+def yolo_loss(y_true, y_pred):
+    return yolo_loss(y_true, y_pred)
+
+def gui_detection_model_test(model_name, img):
+    
+    
+    
+    # Resize the image
+    img = cv2.resize(img, (224, 224))
+
+    # Save a copy of the original image for later
+    original_img = img.copy()
+
+    # Convert the image to a tensor and resize it
+    image = tf.convert_to_tensor(img)
+    image = tf.image.resize(image, [Width, Height])
+
+    model = tf.keras.models.load_model(f'saved_models/detection_models/{model_name}')
+    
+    # Predict the output
+    output = model.predict(np.expand_dims(image, axis=0))
+
+    THRESH = .25
+
+    object_positions = tf.concat(
+        [tf.where(output[..., 0] >= THRESH), tf.where(output[..., 5] >= THRESH)], axis=0)
+    selected_output = tf.gather_nd(output, object_positions)
     final_boxes = []
+    final_scores = []
 
     for i, pos in enumerate(object_positions):
         for j in range(2):
@@ -107,47 +129,47 @@ def gui_detection_model_test(model_name, original_img):
                 x_centre = (tf.cast(pos[1], dtype=tf.float32) + output_box[0]) * 32
                 y_centre = (tf.cast(pos[2], dtype=tf.float32) + output_box[1]) * 32
 
-                x_width, y_height = tf.math.abs(H*output_box[2]), tf.math.abs(W*output_box[3])
+                x_width, y_height = tf.math.abs(Height*output_box[2]), tf.math.abs(Width*output_box[3])
 
                 x_min, y_min = int(x_centre - (x_width / 2)), int(y_centre - (y_height / 2))
                 x_max, y_max = int(x_centre + (x_width / 2)), int(y_centre + (y_height / 2))
 
                 if(x_min <= 0): x_min = 0
                 if(y_min <= 0): y_min = 0
-                if(x_max >= W): x_max = W
-                if(y_max >= H): y_max = H
+                if(x_max >= Width): x_max = Width
+                if(y_max >= Height): y_max = Height
                 final_boxes.append(
                     [x_min, y_min, x_max, y_max,
                     str(classes[tf.argmax(selected_output[..., 10:], axis=-1)[i]])])
+                final_scores.append(selected_output[i][j*5])
 
-        final_boxes = np.array(final_boxes)
+    final_boxes = np.array(final_boxes)
 
-        object_classes = final_boxes[..., 4]
-        nms_boxes = final_boxes[..., 0:4]
+    object_classes = final_boxes[..., 4]
+    nms_boxes = final_boxes[..., 0:4]
 
-        nms_output = tf.image.non_max_suppression(
-            nms_boxes, final_scores, max_output_size=100, iou_threshold=0.2,
-            score_threshold=float('-inf')
+    nms_output = tf.image.non_max_suppression(
+        nms_boxes, final_scores, max_output_size=100, iou_threshold=0.2,
+        score_threshold=float('-inf')
+    )
+
+    for i in nms_output:
+        cv2.rectangle(
+            img,
+            (int(final_boxes[i][0]), int(final_boxes[i][1])),
+            (int(final_boxes[i][2]), int(final_boxes[i][3])), (0, 0, 255), 1)
+        cv2.putText(
+            img,
+            final_boxes[i][-1],
+            (int(final_boxes[i][0]), int(final_boxes[i][1]) + 15),
+            cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (2, 225, 155), 1
         )
 
-        for i in nms_output:
-            cv2.rectangle(
-                img,
-                (int(final_boxes[i][0]), int(final_boxes[i][1])),
-                (int(final_boxes[i][2]), int(final_boxes[i][3])), (0, 0, 255), 1)
-            cv2.putText(
-                img,
-                final_boxes[i][-1],
-                (int(final_boxes[i][0]), int(final_boxes[i][1]) + 15),
-                cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (2, 225, 155), 1
-            )
-            
-    cmap = plt.get_cmap('jet')
+    # Convert BGR to RGB for matplotlib
+    original_img = cv2.cvtColor(original_img, cv2.COLOR_BGR2RGB)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cmap(img)
 
-    # Convert to uint8 and save
-    img = (img * 255).astype('uint8')
+
 
     return img
 
