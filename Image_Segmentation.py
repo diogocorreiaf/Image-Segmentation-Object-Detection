@@ -19,7 +19,7 @@ def datasetloader(train_split_value,val_split_value):
     if train_split_value + val_split_value >0.9:
         gr.Info("The sum of the train and validation split values must be less than 0.9 to allow space for the test split.")
         return
-    dataset_randomizer(train_split_value, val_split_value)
+    dataset_randomizer(task,train_split_value, val_split_value)
     global Train, Val, Test
     Train, Val, Test = load_and_shuffle_data(task)
     Train, Val, Test = create_datasets(Train, Val, Test, task)

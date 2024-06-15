@@ -22,46 +22,55 @@ def log_det_model_performance(model, model_name, test, test_loss):
     os.makedirs('saved_models', exist_ok=True)
     
     # Configure logging to avoid duplicate log entries
-    logger = logging.getLogger()
+    logger = logging.getLogger(model_name)
     if not logger.hasHandlers():
-        logging.basicConfig(filename=f'saved_models/{model_name}.log', level=logging.INFO)
+        file_handler = logging.FileHandler(f'saved_models/{model_name}.log')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.setLevel(logging.INFO)
     
     y_true_all = []
     y_pred_all = []
 
     for test_images, test_labels in test:
         y_pred = model.predict(test_images)
-        y_true_all.extend(test_labels)
-        y_pred_all.extend(y_pred)
+        y_true_all.append(test_labels)
+        y_pred_all.append(y_pred)
 
-    y_true_all = np.array(y_true_all)
-    y_pred_all = np.array(y_pred_all)
+    y_true_all = np.concatenate(y_true_all, axis=0)
+    y_pred_all = np.concatenate(y_pred_all, axis=0)
     
-   # mAP = average_precision_score(y_true_all.ravel(), y_pred_all.ravel())
+    # Ensure y_true_all and y_pred_all have consistent shapes
+    if y_true_all.shape != y_pred_all.shape:
+        min_length = min(len(y_true_all), len(y_pred_all))
+        y_true_all = y_true_all[:min_length]
+        y_pred_all = y_pred_all[:min_length]
+        logger.warning(f'Shape mismatch corrected: using first {min_length} samples for both y_true_all and y_pred_all')
+
+    # Calculate Precision, Recall, and F1 Score
+    y_true_classes = np.argmax(y_true_all[..., 10:], axis=-1).ravel()
+    y_pred_classes = np.argmax(y_pred_all[..., 10:], axis=-1).ravel()
     
-    #iou = calculate_iou(y_true_all, y_pred_all)
-    #mean_iou = np.mean(iou)
+    precision = precision_score(y_true_classes, y_pred_classes, average='macro')
+    recall = recall_score(y_true_classes, y_pred_classes, average='macro')
+    f1 = f1_score(y_true_classes, y_pred_classes, average='macro')
     
-    precision = precision_score(y_true_all, y_pred_all, average='macro')
-    recall = recall_score(y_true_all, y_pred_all, average='macro')
-    f1 = f1_score(y_true_all, y_pred_all, average='macro')
+    logger.info(f'Precision: {precision:.4f}')
+    logger.info(f'Recall: {recall:.4f}')
+    logger.info(f'F1 Score: {f1:.4f}')
     
-    #logging.info(f'Mean Average Precision (mAP): {mAP:.4f}')
-    #logging.info(f'Mean Intersection over Union (IoU): {mean_iou:.4f}')
-    logging.info(f'Precision: {precision:.4f}')
-    logging.info(f'Recall: {recall:.4f}')
-    logging.info(f'F1 Score: {f1:.4f}')
+    true_class_counts = Counter(y_true_classes)
+    pred_class_counts = Counter(y_pred_classes)
+    logger.info(f'True class distribution: {true_class_counts}')
+    logger.info(f'Predicted class distribution: {pred_class_counts}')
     
-    true_class_counts = Counter(y_true_all)
-    pred_class_counts = Counter(y_pred_all)
-    logging.info(f'True class distribution: {true_class_counts}')
-    logging.info(f'Predicted class distribution: {pred_class_counts}')
+    logger.info(f'Hyperparameters: {model.optimizer.get_config()}')
+    logger.info(f'Test loss: {test_loss:.4f}')
     
-    logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
-    logging.info(f'Test loss: {test_loss:.4f}')
-    
-    model.summary(print_fn=logging.info)
-    
+    # Logging the model summary
+    model.summary(print_fn=logger.info)
+
     
     
 def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
@@ -107,8 +116,6 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     
 def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epochs=50):
     #Set callbacks
-    
-    print("Arguments: ", model, model_name, Train, Val, Batchsize, Epochs)
     mixed_precision.set_global_policy('mixed_float16')
     gc.collect()
     gc.enable()
@@ -123,8 +130,9 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
     
     #Save model
     os.makedirs('saved_models/detection_models', exist_ok=True)
-    model.save(os.path.join('saved_models', 'detection_models', model_name + '.keras', custom_objects={'yolo_loss': yolo_loss}))
-    print("Model saved successfully.")
+    model_path = os.path.join('saved_models', 'detection_models', model_name + '.keras')
+    model.save(model_path)
+    
     #Logging the model
     test_loss = model.evaluate(Test)
     log_det_model_performance(model, model_name, Test, test_loss)

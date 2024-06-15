@@ -2,18 +2,15 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import os
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from keras.preprocessing.image import load_img, img_to_array
-import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
 from models.detection_models import yolo_loss
-import matplotlib.colors as mcolors
 from PIL import Image
 from keras.saving import register_keras_serializable
-
-classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
-
-Width, Height = 224, 224
+from utils.constants import Pascal_VOC_classes, Img_Height, Img_Width
 
 
 
@@ -95,18 +92,15 @@ def yolo_loss(y_true, y_pred):
     return yolo_loss(y_true, y_pred)
 
 def gui_detection_model_test(model_name, img):
-    
-    
-    
     # Resize the image
-    img = cv2.resize(img, (224, 224))
+    img = cv2.resize(img, (Img_Height, Img_Width))
 
     # Save a copy of the original image for later
     original_img = img.copy()
 
     # Convert the image to a tensor and resize it
     image = tf.convert_to_tensor(img)
-    image = tf.image.resize(image, [Width, Height])
+    image = tf.image.resize(image, [Img_Height, Img_Width])
 
     model = tf.keras.models.load_model(f'saved_models/detection_models/{model_name}')
     
@@ -129,18 +123,18 @@ def gui_detection_model_test(model_name, img):
                 x_centre = (tf.cast(pos[1], dtype=tf.float32) + output_box[0]) * 32
                 y_centre = (tf.cast(pos[2], dtype=tf.float32) + output_box[1]) * 32
 
-                x_width, y_height = tf.math.abs(Height*output_box[2]), tf.math.abs(Width*output_box[3])
+                x_width, y_height = tf.math.abs(Img_Height*output_box[2]), tf.math.abs(Img_Width*output_box[3])
 
                 x_min, y_min = int(x_centre - (x_width / 2)), int(y_centre - (y_height / 2))
                 x_max, y_max = int(x_centre + (x_width / 2)), int(y_centre + (y_height / 2))
 
                 if(x_min <= 0): x_min = 0
                 if(y_min <= 0): y_min = 0
-                if(x_max >= Width): x_max = Width
-                if(y_max >= Height): y_max = Height
+                if(x_max >= Img_Width): x_max = Img_Width
+                if(y_max >= Img_Height): y_max = Img_Height
                 final_boxes.append(
                     [x_min, y_min, x_max, y_max,
-                    str(classes[tf.argmax(selected_output[..., 10:], axis=-1)[i]])])
+                    str(Pascal_VOC_classes[tf.argmax(selected_output[..., 10:], axis=-1)[i]])])
                 final_scores.append(selected_output[i][j*5])
 
     final_boxes = np.array(final_boxes)
@@ -168,8 +162,6 @@ def gui_detection_model_test(model_name, img):
     # Convert BGR to RGB for matplotlib
     original_img = cv2.cvtColor(original_img, cv2.COLOR_BGR2RGB)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-
 
     return img
 

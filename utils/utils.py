@@ -6,16 +6,23 @@ root_dir = os.path.join(os.curdir,"my_logs")
 
 dataset_path = '/mnt/c/Users/diogo/Documents/UVT/THESIS/Dataset'
 
-def dataset_randomizer(test_ratio = 0.65, val_ratio = 0.2):
+def dataset_randomizer(task, test_ratio = 0.65, val_ratio = 0.2):
     ''' Randomizes the Dataset, acesses the trainval.txt and splits it between the train, val and test.txt file
         
         Args:
         - dataset_path (str): The path to the dataset directory. 
         '''
-    trainval_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","trainval.txt")
-    train_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","train.txt")
-    val_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","val.txt")
-    test_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","test.txt")
+    if task == "segmentation":
+        trainval_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","trainsegmentation.txt")
+        train_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","train.txt")
+        val_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","val.txt")
+        test_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","test.txt")
+
+    elif task == "detection":
+        trainval_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Main","trainval.txt")
+        train_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Main","train.txt")
+        val_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Main","val.txt")
+        test_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Main","test.txt")
 
 
     with open(trainval_path, 'r') as file:

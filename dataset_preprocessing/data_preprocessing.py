@@ -8,20 +8,9 @@ import numpy as np
 import cv2
 from PIL import Image
 from albumentations import RandomRotate90
+from utils.constants import Pascal_VOC_classes, Img_Width, Img_Height, SPLIT_SIZE, num_classes_detection, num_classes_segmentation
 
 
-
-
-# Size that Images will be resized to
-Img_Width,Img_Height = 224,224 
-
-# Split size
-SPLIT_SIZE = 7
-
-# Classes in the Pascal VOC dataset
-classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
-num_classes_detection = len(classes)
-num_classes_segmentation = 21
 
 transforms = A.Compose([
     A.Resize(Img_Height,Img_Width),
@@ -64,7 +53,7 @@ def preprocess_xml(filename):
     height = float(size_tree.find('height').text)
     width = float(size_tree.find('width').text)
     bounding_boxes = []
-    class_dict = {classes[i]: i for i in range(len(classes))}
+    class_dict = {Pascal_VOC_classes[i]: i for i in range(len(Pascal_VOC_classes))}
     for object_tree in root.findall('object'):
         for bounding_box in object_tree.iter('bndbox'):
             xmin = float(bounding_box.find('xmin').text)
@@ -243,7 +232,7 @@ def Create_Mask_Augment(Instance):
     
     Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
 
-    if tf.random.uniform(()) > 0.5:  # Applying data Augmentation
+    if tf.random.uniform(()) > 0.5:
         aug = RandomRotate90(p=0.5)
         Augmented = aug(image = Img,mask = Mask)
 
@@ -275,7 +264,7 @@ def Seg_Preprocess(Instance):
 
     
 
-def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=2, BUFFER_SIZE=2):
+def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=3, BUFFER_SIZE=2):
     '''
     Creates a TensorFlow data pipeline for training or validation data.
 
@@ -290,11 +279,9 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=2, BUFFER_SIZE
     
     if(data_type == 'segmentation'):
         if(train_type == 'train') :
-            #data = dataset.map(lambda x: seg_preprocess(x, is_training=True), num_parallel_calls=tf.data.AUTOTUNE)
             data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
 
         else:
-            #data = dataset.map(lambda x: seg_preprocess(x, is_training=False), num_parallel_calls=tf.data.AUTOTUNE)
             data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
     
     elif(data_type == 'detection'):

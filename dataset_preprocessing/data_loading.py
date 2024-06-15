@@ -4,9 +4,6 @@ import tensorflow as tf
 from dataset_preprocessing.data_preprocessing import create_data_loader
 from utils.utils import dataset_path
 
-Pascal_VOC_classes=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
-
-
 
 def load_image_seg_class_paths(dataset_type):
     """
@@ -62,7 +59,7 @@ def load_image_annotations(dataset_type ):
         txt_file = "test.txt"
     else:
         raise ValueError("Invalid dataset_type. Use 'train', 'val', or 'test'.")
-    new_path = os.path.join(dataset_path, "VOC2012_train_val", "VOC2012_train_val", "ImageSets", "Segmentation", txt_file)
+    new_path = os.path.join(dataset_path, "VOC2012_train_val", "VOC2012_train_val", "ImageSets", "Main", txt_file)
     with open(new_path, "r") as file_:
         Instances = file_.read().split()
         for img in Instances:

@@ -1,12 +1,8 @@
 import tensorflow as tf
 from functools import partial
+from utils.constants import NUM_FILTERS, B, num_classes_detection, SPLIT_SIZE
 
-
-NUM_FILTERS=512
-B=2
-N_CLASSES = 20
-OUTPUT_DIM=int(N_CLASSES+5*B)
-SPLIT_SIZE = 7
+OUTPUT_DIM=int(num_classes_detection+5*B)
 
 
 def yolo_loss(y_true,y_pred):
@@ -119,8 +115,8 @@ def compute_iou(boxes1,boxes2):
 
 # TODO Alter the model, make a tuner function to customize the hyperparemeters
 
-def create_detection_model(transfer_learning, kernel_initializer, optimizer_name, learning_rate, momentum):
-    model = yolo_model(transfer_learning, kernel_initializer,)
+def create_detection_model(fine_tuning, kernel_initializer, optimizer_name, learning_rate, momentum):
+    model = yolo_model(fine_tuning, kernel_initializer,)
     
     if optimizer_name == 'SGD':
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
@@ -138,28 +134,28 @@ def create_detection_model(transfer_learning, kernel_initializer, optimizer_name
     model.compile(loss=yolo_loss, optimizer=optimizer)
     return model
 
-def yolo_model(transfer_learning=False, kernel_initializer='he_normal'):
+def yolo_model(fine_tuning=False, kernel_initializer='he_normal'):
 
     base_model = tf.keras.applications.ResNet50(weights='imagenet', input_shape=(224,224,3), include_top=False)
-    base_model.trainable = not transfer_learning
+    base_model.trainable = fine_tuning
     
     model = tf.keras.Sequential([
         base_model,
-        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer='he_normal'),
+        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer=kernel_initializer),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 
-        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer='he_normal'),
+        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer=kernel_initializer),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 
-        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer='he_normal'),
+        tf.keras.layers.Conv2D(NUM_FILTERS,(3,3),padding='same',kernel_initializer=kernel_initializer),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.LeakyReLU(),
 
         tf.keras.layers.Flatten(),
 
-        tf.keras.layers.Dense(NUM_FILTERS,kernel_initializer='he_normal'),
+        tf.keras.layers.Dense(NUM_FILTERS,kernel_initializer=kernel_initializer),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 
