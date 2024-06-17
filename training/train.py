@@ -134,13 +134,14 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
     model.save(model_path)
     
     #Logging the model
-    test_loss = model.evaluate(Test)
-    log_det_model_performance(model, model_name, Test, test_loss)
     pd.DataFrame(history.history).plot(figsize = (10,8))
     
     plt.grid('True')
     plt.savefig("Model_Learning_Curve.png")
     plt.show()
+    test_loss = model.evaluate(Test)
+    log_det_model_performance(model, model_name, Test, test_loss)
+
 
 
 
