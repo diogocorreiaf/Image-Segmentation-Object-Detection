@@ -53,37 +53,48 @@ def get_path():
     return os.path.join(root_dir,id_)
 
 
-def calculate_iou(y_true, y_pred):
-    """
-    Calculate Intersection over Union (IoU) for bounding boxes.
+def compute_metrics(predictions, labels):
+    # Extract confidence scores and bounding box coordinates from predictions and labels
+    pred_confidence = predictions[..., 4]  # Confidence score
+    true_confidence = labels[..., 4]  # Confidence score
 
-    Args:
-    y_true: Ground truth bounding boxes, shaped [N, 4], where N is the number of boxes and each box is represented as [x1, y1, x2, y2].
-    y_pred: Predicted bounding boxes, shaped [N, 4], where N is the number of boxes and each box is represented as [x1, y1, x2, y2].
+    # Convert confidence scores to boolean (1 for object, 0 for no object)
+    pred_conf_bool = tf.cast(pred_confidence > 0.5, dtype=tf.float32)
+    true_conf_bool = tf.cast(true_confidence > 0.5, dtype=tf.float32)
 
-    Returns:
-    IoU: Intersection over Union for each pair of boxes, shaped [N,].
-    """
-    # Calculate intersection coordinates
-    x1 = np.maximum(y_true[:, 0], y_pred[:, 0])
-    y1 = np.maximum(y_true[:, 1], y_pred[:, 1])
-    x2 = np.minimum(y_true[:, 2], y_pred[:, 2])
-    y2 = np.minimum(y_true[:, 3], y_pred[:, 3])
+    # Compute true positives, false positives, and false negatives
+    true_positives = tf.reduce_sum(pred_conf_bool * true_conf_bool, axis=(1, 2))  # Sum over spatial dimensions (7, 7)
+    false_positives = tf.reduce_sum(pred_conf_bool * (1 - true_conf_bool), axis=(1, 2))  # Sum over spatial dimensions (7, 7)
+    false_negatives = tf.reduce_sum((1 - pred_conf_bool) * true_conf_bool, axis=(1, 2))  # Sum over spatial dimensions (7, 7)
 
-    # Calculate intersection area
-    intersection_area = np.maximum(x2 - x1, 0) * np.maximum(y2 - y1, 0)
+    # Compute precision and recall
+    precision = true_positives / tf.maximum(true_positives + false_positives, 1e-10)
+    recall = true_positives / tf.maximum(true_positives + false_negatives, 1e-10)
 
-    # Calculate bounding box areas
-    true_area = (y_true[:, 2] - y_true[:, 0]) * (y_true[:, 3] - y_true[:, 1])
-    pred_area = (y_pred[:, 2] - y_pred[:, 0]) * (y_pred[:, 3] - y_pred[:, 1])
+    # Compute F1 score
+    f1_score = 2 * (precision * recall) / tf.maximum(precision + recall, 1e-10)
 
-    # Calculate Union area
-    union_area = true_area + pred_area - intersection_area
+    return precision, recall, f1_score
 
-    # Avoid division by zero
-    epsilon = 1e-10
+def compute_iou2(boxes1, boxes2):
+    # Extract bounding box coordinates from predictions (boxes1) and labels (boxes2)
+    boxes1_xy = boxes1[..., :2]
+    boxes1_wh = boxes1[..., 2:4]
+    boxes2_xy = boxes2[..., :2]
+    boxes2_wh = boxes2[..., 2:4]
+
+    # Calculate coordinates of intersection
+    intersect_mins = tf.maximum(boxes1_xy - boxes1_wh / 2., boxes2_xy - boxes2_wh / 2.)
+    intersect_maxes = tf.minimum(boxes1_xy + boxes1_wh / 2., boxes2_xy + boxes2_wh / 2.)
+    intersect_wh = tf.maximum(intersect_maxes - intersect_mins, 0.)
+    intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
+
+    # Calculate area of boxes
+    boxes1_area = boxes1_wh[..., 0] * boxes1_wh[..., 1]
+    boxes2_area = boxes2_wh[..., 0] * boxes2_wh[..., 1]
 
     # Calculate IoU
-    iou = intersection_area / (union_area + epsilon)
+    union_area = boxes1_area + boxes2_area - intersect_area
+    iou = intersect_area / tf.maximum(union_area, 1e-10)  # Avoid division by zero
 
     return iou

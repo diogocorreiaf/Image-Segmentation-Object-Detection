@@ -98,3 +98,4 @@ with gr.Blocks(title="Image Segmentation") as image_segmentation:
                 testing_img = gr.Image(label="Test Image") 
                 predict_btn = gr.Button("Predict")  
                 predict_btn.click(predict_model, inputs=[loaded_model, testing_img], outputs=gr.Image(label="Segmented Image", format="png"))
+image_segmentation.launch()                

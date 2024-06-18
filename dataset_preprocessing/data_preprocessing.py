@@ -11,6 +11,36 @@ from albumentations import RandomRotate90
 from utils.constants import Pascal_VOC_classes, Img_Width, Img_Height, SPLIT_SIZE, num_classes_detection, num_classes_segmentation
 
 
+def preprocess(img,y):
+  img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
+
+  labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
+  return img,labels
+
+def preprocess_augment(img,y):
+  img = tf.image.random_brightness(img, max_delta=50.)
+  img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
+  img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
+  #img = tf.image.random_hue(img, max_delta=0.5 )
+  img = tf.clip_by_value(img, 0, 255)
+  labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
+  return img,labels
+
+def process_data(image,bboxes):
+    aug= tf.numpy_function(func=aug_albument, inp=[image,bboxes], Tout=(tf.float32,tf.float32))
+    return aug[0],aug[1]
+
+def get_imbboxes(paths):
+    im_path = paths[0]  # Extract image path
+    xml_path = paths[1]
+    # Read and preprocess the image
+    img = tf.io.decode_jpeg(tf.io.read_file(im_path))
+    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
+    
+    # Preprocess XML annotations to bounding boxes
+    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
+    
+    return img, bboxes
 
 transforms = A.Compose([
     A.Resize(Img_Height,Img_Width),
@@ -40,47 +70,35 @@ def preprocess_augment(img, y):
     return img, labels
 
 def preprocess(img, y):
-    img = tf.cast(tf.image.resize(img, size=[Image, Img_Width]), dtype=tf.float32)
+    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
     labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
     return img, labels
 
 def preprocess_xml(filename):
-    if isinstance(filename, np.ndarray):
-        filename = filename.item()  # Convert numpy ndarray to native Python type
-    tree = ET.parse(filename)
-    root = tree.getroot()
-    size_tree = root.find('size')
-    height = float(size_tree.find('height').text)
-    width = float(size_tree.find('width').text)
-    bounding_boxes = []
-    class_dict = {Pascal_VOC_classes[i]: i for i in range(len(Pascal_VOC_classes))}
+    tree=ET.parse(filename)
+    root=tree.getroot()
+    size_tree=root.find('size')
+    height=float(size_tree.find('height').text)
+    width=float(size_tree.find('width').text)
+    bounding_boxes=[]
+    class_dict={Pascal_VOC_classes[i]:i for i in range(len(Pascal_VOC_classes))}
     for object_tree in root.findall('object'):
         for bounding_box in object_tree.iter('bndbox'):
-            xmin = float(bounding_box.find('xmin').text)
-            xmax = float(bounding_box.find('xmax').text)
-            ymin = float(bounding_box.find('ymin').text)
-            ymax = float(bounding_box.find('ymax').text)
+            xmin=float(bounding_box.find('xmin').text)
+            xmax=float(bounding_box.find('xmax').text)
+            ymin=float(bounding_box.find('ymin').text)
+            ymax=float(bounding_box.find('ymax').text)
             break
-        class_name = object_tree.find('name').text
-        bounding_box = [
-            (xmin + xmax) / (2 * width),
-            (ymin + ymax) / (2 * height),
-            (xmax - xmin) / width,
-            (ymax - ymin) / height,
-            class_dict[class_name]
+        class_name=object_tree.find('name').text
+        bounding_box=[
+                (xmin+xmax)/(2*width),
+                (ymin+ymax)/(2*height),
+                (xmax-xmin)/width,
+                (ymax-ymin)/height,
+                class_dict[class_name]
         ]
         bounding_boxes.append(bounding_box)
     return tf.convert_to_tensor(bounding_boxes)
-
-
-
-def get_imbboxes(im_path, xml_path):
-    img = tf.io.decode_jpeg(tf.io.read_file(im_path))
-    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
-    tf.py_function(lambda: print(f"Image shape: {img.shape}"), inp=[], Tout=[])
-    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
-    return img, bboxes
-
 
 
 def generate_output(bounding_boxes):
@@ -94,7 +112,7 @@ def generate_output(bounding_boxes):
     output_label[i,j,0:5]=[1.,grid_x%1,grid_y%1,bounding_boxes[...,b,2],bounding_boxes[...,b,3]]
     output_label[i,j,5+int(bounding_boxes[...,b,4])]=1.
 
-  return tf.convert_to_tensor(output_label,tf.float16)
+  return tf.convert_to_tensor(output_label,tf.float32)
 
 def Create_Mask(Img):
     '''
@@ -201,6 +219,46 @@ def seg_preprocess(Instance, is_training = True):
     return Img, Mask
 
   
+def detection_preprocess_augment(Instance):
+    im_path = Instance[0]  # Extract image path
+    xml_path = Instance[1]  # Extract XML annotation path
+
+    # Read and preprocess the image
+    img = tf.io.decode_jpeg(tf.io.read_file(im_path))
+    img = tf.image.resize(img, size=[Img_Height, Img_Width])
+    img = tf.image.convert_image_dtype(img, dtype=tf.float32)  # Convert to float32
+    
+    # Preprocess XML annotations to bounding boxes
+    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
+    
+    # Apply Albumentations transformations
+    img, bboxes = tf.numpy_function(func=aug_albument, inp=[img, bboxes], Tout=[tf.float32, tf.float32])
+    
+    # Apply additional augmentations
+    img = tf.image.random_brightness(img, max_delta=50.)
+    img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
+    img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
+    img = tf.clip_by_value(img, 0, 255)
+    
+    # Generate output labels in YOLO format
+    labels = tf.numpy_function(func=generate_output, inp=[bboxes], Tout=tf.float32)
+    
+    return img, labels
+
+def detection_preprocess(Instance):
+    im_path = Instance[0]  # Extract image path
+    xml_path = Instance[1]  # Extract XML annotation path
+
+    # Read and preprocess the image
+    img = tf.io.decode_jpeg(tf.io.read_file(im_path))
+    img = tf.image.resize(img, size=[Img_Height, Img_Width])
+    img = tf.image.convert_image_dtype(img, dtype=tf.float32)  # Convert to float32
+    
+    # Preprocess XML annotations to bounding boxes
+    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
+    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
+    labels = tf.numpy_function(func=generate_output, inp=[bboxes], Tout=tf.float32)
+    return img, labels
 
 def detect_preprocess(Instance, is_training):
     '''
@@ -286,11 +344,14 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=3, BUFFER_SIZE
     
     elif(data_type == 'detection'):
         if(train_type == 'train') :
-            data = dataset.map(lambda x: detect_preprocess(x, is_training=True), num_parallel_calls=tf.data.AUTOTUNE)
+            #data = dataset.map(detection_preprocess_augment, num_parallel_calls=tf.data.AUTOTUNE)
+            data = dataset.map(get_imbboxes)
+            data = data.map(process_data)
+            data = data.map(preprocess_augment)
         else:
-            data = dataset.map(lambda x: detect_preprocess(x, is_training=False), num_parallel_calls=tf.data.AUTOTUNE)
-
-
+            #data = dataset.map(detection_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+            data = dataset.map(get_imbboxes)
+            data = data.map(preprocess)
     data = data.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
     data = data.prefetch(buffer_size = tf.data.AUTOTUNE)
     

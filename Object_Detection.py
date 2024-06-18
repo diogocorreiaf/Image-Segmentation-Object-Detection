@@ -50,8 +50,8 @@ with gr.Blocks(title="Object Detection") as object_detection:
                 gr.Label("Dataset Preprocessing",show_label=False)
                 train_split_value = gr.Slider(minimum=0, maximum=0.9, label="Train Split Size", value=0.6)
                 val_split_value = gr.Slider(minimum=0, maximum=0.9, label="Validation Split Size", value=0.2)
-                randomize_btn_2 = gr.Button("Loading and Preprocess Dataset 2")
-                out_box_2 = gr.Textbox(show_label=False, placeholder="Tab2")
+                randomize_btn_2 = gr.Button("Loading and Preprocess Dataset")
+                out_box_2 = gr.Textbox(show_label=False)
                 randomize_btn_2.click(fn=datasetloader_1, inputs=[train_split_value, val_split_value], outputs=out_box_2)
                 
             
