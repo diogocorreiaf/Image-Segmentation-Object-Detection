@@ -17,7 +17,7 @@ def main():
         model_name = input("Enter a name for the model: ")
         
         task = input("Enter the task you want to run either segmentation or detection: ")
-        dataset_randomizer()
+        dataset_randomizer(task)
         Train, Val, Test = load_and_shuffle_data(task)
         Train, Val, Test = create_datasets(Train, Val, Test, task)
         train_models(task, model_name, Train, Val, Test)

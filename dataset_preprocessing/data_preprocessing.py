@@ -31,13 +31,11 @@ def process_data(image,bboxes):
     return aug[0],aug[1]
 
 def get_imbboxes(paths):
-    im_path = paths[0]  # Extract image path
+    im_path = paths[0] 
     xml_path = paths[1]
-    # Read and preprocess the image
     img = tf.io.decode_jpeg(tf.io.read_file(im_path))
     img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
     
-    # Preprocess XML annotations to bounding boxes
     bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
     
     return img, bboxes
@@ -220,8 +218,8 @@ def seg_preprocess(Instance, is_training = True):
 
   
 def detection_preprocess_augment(Instance):
-    im_path = Instance[0]  # Extract image path
-    xml_path = Instance[1]  # Extract XML annotation path
+    im_path = Instance[0] 
+    xml_path = Instance[1]
 
     # Read and preprocess the image
     img = tf.io.decode_jpeg(tf.io.read_file(im_path))
@@ -289,13 +287,10 @@ def Create_Mask_Augment(Instance):
     Mask = np.asarray(Mask)  
     
     Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
-
-    if tf.random.uniform(()) > 0.5:
-        aug = RandomRotate90(p=0.5)
-        Augmented = aug(image = Img,mask = Mask)
-
-        Img = Augmented["image"]
-        Mask = Augmented["mask"]
+    
+    Img = tf.image.random_brightness(Img, max_delta=50.)
+    Img = tf.image.random_saturation(Img, lower=0.5, upper=1.5)
+    Img = tf.image.random_contrast(Img, lower=0.5, upper=1.5)
   
     return Normalization(Img),Create_Mask(Mask)
         
@@ -344,14 +339,10 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=3, BUFFER_SIZE
     
     elif(data_type == 'detection'):
         if(train_type == 'train') :
-            #data = dataset.map(detection_preprocess_augment, num_parallel_calls=tf.data.AUTOTUNE)
-            data = dataset.map(get_imbboxes)
-            data = data.map(process_data)
-            data = data.map(preprocess_augment)
+            data = dataset.map(detection_preprocess_augment, num_parallel_calls=tf.data.AUTOTUNE)
         else:
-            #data = dataset.map(detection_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
-            data = dataset.map(get_imbboxes)
-            data = data.map(preprocess)
+            data = dataset.map(detection_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+
     data = data.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
     data = data.prefetch(buffer_size = tf.data.AUTOTUNE)
     

@@ -7,14 +7,21 @@ import numpy as np
 import pandas as pd
 from tensorflow import keras
 from keras import mixed_precision
+from tensorflow.keras.callbacks import LearningRateScheduler
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, average_precision_score
 from utils.utils import get_path
 from models.detection_models import create_detection_model, yolo_loss
-from models.segmentation_models import create_segmentation_model
+from models.segmentation_models import create_segmentation_model, global_lr
 from collections import Counter
 from utils.utils import compute_iou2, compute_metrics
-
-
+ffo
+def lr_schedule(epoch):
+    lr = global_lr
+    if epoch > 40:
+        lr *= 0.01
+    elif epoch > 20:
+        lr *= 0.1
+    return lr
 
 
 
@@ -65,6 +72,7 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     if not logger.hasHandlers():
         logging.basicConfig(filename=f'saved_models/segmentation_models/{model_name}.log', level=logging.INFO)
     
+    logging.info(f'Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}')
     y_true_all = []
     y_pred_all = []
 
@@ -78,9 +86,13 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     y_pred_all = np.array(y_pred_all)
     
     cm = confusion_matrix(y_true_all, y_pred_all)
+    print("I printed the CM")
     precision = precision_score(y_true_all, y_pred_all, average='weighted')
+    print("I printed Precision")
     recall = recall_score(y_true_all, y_pred_all, average='weighted')
+    print("I printed Recall")
     f1 = f1_score(y_true_all, y_pred_all, average='weighted')
+    print("I printed F1")
     
     logging.info(f'Confusion Matrix: \n{cm}')
     logging.info(f'Precision: {precision:.4f}')
@@ -93,7 +105,6 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     logging.info(f'Predicted class distribution: {pred_class_counts}')
     
     logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
-    logging.info(f'Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}')
     
     model.summary(print_fn=logging.info)
     
@@ -107,9 +118,9 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
     
     Early, Checkpoint, Tensorboard, checkpoint_path = get_callbacks()
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-    
+    lr_scheduler = LearningRateScheduler(lr_schedule)
     #Train model
-    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Checkpoint, Tensorboard])
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Checkpoint, Tensorboard, lr_scheduler])
     best_checkpoint = Checkpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
     
@@ -122,7 +133,7 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
     pd.DataFrame(history.history).plot(figsize = (10,8))
     
     plt.grid('True')
-    plt.savefig("Model_Learning_Curve.png")
+    plt.savefig( model_name+".png")
     plt.show()
     test_loss = model.evaluate(Test)
     log_det_model_performance(model, model_name, Test, test_loss)
@@ -131,17 +142,18 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
 
 
 
-def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize=2, Epochs=50):
+def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize, Epochs):
     #Set callbacks
     mixed_precision.set_global_policy('mixed_float16')
     gc.collect()
     gc.enable()
-    
+    print(Epochs)
+    lr_scheduler = LearningRateScheduler(lr_schedule)
     Early, Ceckpoint, Tensorboard, checkpoint_path = get_callbacks()
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
     
     #Train model
-    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard])
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard, lr_scheduler])
     best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
     
@@ -155,7 +167,7 @@ def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize=2, Ep
     log_seg_model_performance(model, model_name, Test, test_loss, test_accuracy)
     pd.DataFrame(history.history).plot(figsize = (10,8))
     plt.grid('True')
-    plt.savefig("Model_Learning_Curve.png")
+    plt.savefig(model_name+".png")
     plt.show()
 
 def train_models(task, model_name, train, val, test):

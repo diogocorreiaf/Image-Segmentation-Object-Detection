@@ -113,7 +113,6 @@ def compute_iou(boxes1,boxes2):
     return tf.clip_by_value((inter_square/union_square),0.0,1.0)
 
 
-# TODO Alter the model, make a tuner function to customize the hyperparemeters
 
 def create_detection_model(fine_tuning, kernel_initializer, optimizer_name, learning_rate, momentum):
     model = yolo_model(fine_tuning, kernel_initializer,)
