@@ -2,8 +2,6 @@ import tensorflow as tf
 from tensorflow.keras import regularizers
 from utils.constants import Img_Width, Img_Height, num_classes_segmentation
 
-global_lr = 1e-4
-
 
 def FCN_VGG8(dropout_rate = 0.5, activation = "relu", kernel_initializer = "zeros"  ):
   Input = tf.keras.layers.Input(shape = [Img_Width,Img_Height,3])
@@ -73,7 +71,7 @@ def create_segmentation_model(transfer_learning=True, learning_rate=1e-4, moment
             layers.trainable = False
 
     
-    global_lr = learning_rate
+
     tf.keras.backend.clear_session()
     MeanIou = tf.keras.metrics.MeanIoU(num_classes_segmentation)
 

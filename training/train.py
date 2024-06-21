@@ -7,33 +7,34 @@ import numpy as np
 import pandas as pd
 from tensorflow import keras
 from keras import mixed_precision
-from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, average_precision_score
 from utils.utils import get_path
 from models.detection_models import create_detection_model, yolo_loss
-from models.segmentation_models import create_segmentation_model, global_lr
+from models.segmentation_models import create_segmentation_model
 from collections import Counter
 from utils.utils import compute_iou2, compute_metrics
-ffo
-def lr_schedule(epoch):
-    lr = global_lr
-    if epoch > 40:
-        lr *= 0.01
-    elif epoch > 20:
-        lr *= 0.1
-    return lr
+
+
+
 
 
 
 def log_det_model_performance(model, model_name, test, test_loss):
     os.makedirs('saved_models/detection_models', exist_ok=True)
+    log_file = f'saved_models/segmentation_models/{model_name}.log'
+    
+    # Set up logging
     logger = logging.getLogger(model_name)
-    if not logger.hasHandlers():
-        file_handler = logging.FileHandler(f'saved_models/detection_models/{model_name}.log')
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    logger.setLevel(logging.INFO)
+    
+    if not logger.handlers:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-        logger.setLevel(logging.INFO)
+    logging.info(f'Test Loss: {test_loss:.4f}')
     
     mean_precision = tf.keras.metrics.Mean()
     mean_recall = tf.keras.metrics.Mean()
@@ -68,11 +69,20 @@ def log_det_model_performance(model, model_name, test, test_loss):
 def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     os.makedirs('saved_models/segmentation_models', exist_ok=True)
     
-    logger = logging.getLogger()
-    if not logger.hasHandlers():
-        logging.basicConfig(filename=f'saved_models/segmentation_models/{model_name}.log', level=logging.INFO)
+    log_file = f'saved_models/segmentation_models/{model_name}.log'
     
-    logging.info(f'Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}')
+    # Set up logging
+    logger = logging.getLogger(model_name)
+    logger.setLevel(logging.INFO)
+    
+    if not logger.handlers:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    
+    logger.info(f'Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}')
     y_true_all = []
     y_pred_all = []
 
@@ -86,28 +96,24 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     y_pred_all = np.array(y_pred_all)
     
     cm = confusion_matrix(y_true_all, y_pred_all)
-    print("I printed the CM")
-    precision = precision_score(y_true_all, y_pred_all, average='weighted')
-    print("I printed Precision")
-    recall = recall_score(y_true_all, y_pred_all, average='weighted')
-    print("I printed Recall")
-    f1 = f1_score(y_true_all, y_pred_all, average='weighted')
-    print("I printed F1")
+    precision = precision_score(y_true_all, y_pred_all, average='weighted', zero_division=0)
+    recall = recall_score(y_true_all, y_pred_all, average='weighted', zero_division=0)
+    f1 = f1_score(y_true_all, y_pred_all, average='weighted', zero_division=0)
     
-    logging.info(f'Confusion Matrix: \n{cm}')
-    logging.info(f'Precision: {precision:.4f}')
-    logging.info(f'Recall: {recall:.4f}')
-    logging.info(f'F1 Score: {f1:.4f}')
+    logger.info(f'Confusion Matrix: \n{cm}')
+    logger.info(f'Precision: {precision:.4f}')
+    logger.info(f'Recall: {recall:.4f}')
+    logger.info(f'F1 Score: {f1:.4f}')
     
     true_class_counts = Counter(y_true_all)
     pred_class_counts = Counter(y_pred_all)
-    logging.info(f'True class distribution: {true_class_counts}')
-    logging.info(f'Predicted class distribution: {pred_class_counts}')
+    logger.info(f'True class distribution: {true_class_counts}')
+    logger.info(f'Predicted class distribution: {pred_class_counts}')
     
-    logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
+    logger.info(f'Hyperparameters: {model.optimizer.get_config()}')
     
-    model.summary(print_fn=logging.info)
-    
+    model.summary(print_fn=logger.info)
+
     
     
 def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epochs=50):
@@ -118,9 +124,10 @@ def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epoc
     
     Early, Checkpoint, Tensorboard, checkpoint_path = get_callbacks()
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-    lr_scheduler = LearningRateScheduler(lr_schedule)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=5, min_lr=1e-5)
     #Train model
-    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Checkpoint, Tensorboard, lr_scheduler])
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Checkpoint, Tensorboard,reduce_lr ])
     best_checkpoint = Checkpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
     
@@ -147,28 +154,27 @@ def train_segmentation_model(model,model_name, Train, Val, Test, Batchsize, Epoc
     mixed_precision.set_global_policy('mixed_float16')
     gc.collect()
     gc.enable()
-    print(Epochs)
-    lr_scheduler = LearningRateScheduler(lr_schedule)
     Early, Ceckpoint, Tensorboard, checkpoint_path = get_callbacks()
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-    
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=5, min_lr=1e-5)
     #Train model
-    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard, lr_scheduler])
+    history = model.fit(Train, validation_data=Val, batch_size=Batchsize, epochs=Epochs, callbacks=[Early, Ceckpoint, Tensorboard, reduce_lr])
     best_checkpoint = Ceckpoint.filepath.format(epoch=Early.stopped_epoch, val_loss=min(history.history['val_loss']))
     model.load_weights(best_checkpoint)
     
     #Save Model
     os.makedirs('saved_models/segmentation_models', exist_ok=True)
     model.save(os.path.join('saved_models', 'segmentation_models', model_name + '.keras'))
-    
-    
-    #Logging the model
-    test_loss, test_accuracy = model.evaluate(Test)
-    log_seg_model_performance(model, model_name, Test, test_loss, test_accuracy)
     pd.DataFrame(history.history).plot(figsize = (10,8))
     plt.grid('True')
     plt.savefig(model_name+".png")
     plt.show()
+    
+    #Logging the model
+    test_loss, test_accuracy = model.evaluate(Test)
+    log_seg_model_performance(model, model_name, Test, test_loss, test_accuracy)
+
 
 def train_models(task, model_name, train, val, test):
     mixed_precision.set_global_policy('mixed_float16')

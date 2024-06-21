@@ -1,6 +1,7 @@
 import random
 import os
 import numpy as np
+import tensorflow as tf
 root_dir = os.path.join(os.curdir,"my_logs")
 
 
@@ -12,6 +13,11 @@ def dataset_randomizer(task, test_ratio = 0.65, val_ratio = 0.2):
         Args:
         - dataset_path (str): The path to the dataset directory. 
         '''
+        
+    trainval_path = ""
+    train_path = ""
+    val_path = ""
+    test_path = ""   
     if task == "segmentation":
         trainval_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","trainsegmentation.txt")
         train_path = os.path.join(dataset_path,"VOC2012_train_val","VOC2012_train_val","ImageSets","Segmentation","train.txt")
@@ -77,24 +83,20 @@ def compute_metrics(predictions, labels):
     return precision, recall, f1_score
 
 def compute_iou2(boxes1, boxes2):
-    # Extract bounding box coordinates from predictions (boxes1) and labels (boxes2)
     boxes1_xy = boxes1[..., :2]
     boxes1_wh = boxes1[..., 2:4]
     boxes2_xy = boxes2[..., :2]
     boxes2_wh = boxes2[..., 2:4]
 
-    # Calculate coordinates of intersection
     intersect_mins = tf.maximum(boxes1_xy - boxes1_wh / 2., boxes2_xy - boxes2_wh / 2.)
     intersect_maxes = tf.minimum(boxes1_xy + boxes1_wh / 2., boxes2_xy + boxes2_wh / 2.)
     intersect_wh = tf.maximum(intersect_maxes - intersect_mins, 0.)
     intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
 
-    # Calculate area of boxes
     boxes1_area = boxes1_wh[..., 0] * boxes1_wh[..., 1]
     boxes2_area = boxes2_wh[..., 0] * boxes2_wh[..., 1]
 
-    # Calculate IoU
     union_area = boxes1_area + boxes2_area - intersect_area
-    iou = intersect_area / tf.maximum(union_area, 1e-10)  # Avoid division by zero
+    iou = intersect_area / tf.maximum(union_area, 1e-10) 
 
     return iou
