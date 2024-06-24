@@ -9,6 +9,37 @@ import cv2
 from PIL import Image
 from albumentations import RandomRotate90
 from utils.constants import Pascal_VOC_classes, Img_Width, Img_Height, SPLIT_SIZE, num_classes_detection, num_classes_segmentation
+from collections import defaultdict
+import json
+
+def compute_class_weights(train):
+    class_counts = defaultdict(int)
+
+    for image_path, mask_path in train:
+        mask = np.array(Image.open(mask_path)) 
+        unique_classes, class_counts_in_mask = np.unique(mask, return_counts=True)
+        
+        for cls, count in zip(unique_classes, class_counts_in_mask):
+            class_counts[cls] += count
+            
+    total_pixels = sum(class_counts.values())
+    class_frequencies = {cls: count / total_pixels for cls, count in class_counts.items()}
+    num_classes = len(class_frequencies)
+    total_pixels = sum(class_counts.values())
+    total_weight = sum(class_weights.values())
+    class_weights_normalized = {cls: weight / total_weight for cls, weight in class_weights.items()}
+    if 255 in class_weights:
+        del class_weights[255]
+
+    if 255 in class_weights_normalized:
+        del class_weights_normalized[255]
+
+    total_weight = sum(class_weights.values())
+    class_weights_normalized = {cls: weight / total_weight for cls, weight in class_weights.items()}
+    class_weights_normalized_path = r"\\wsl.localhost\Ubuntu\home\diogo\thesis\Image-Segmentation-Object-Detection\models\class_weights_segmentation.json"
+    with open(class_weights_normalized_path, 'w') as f:
+        json.dump({int(k): float(v) for k, v in sorted(class_weights_normalized.items())}, f, indent=4)
+    
 
 
 def preprocess(img,y):

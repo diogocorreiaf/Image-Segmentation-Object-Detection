@@ -22,19 +22,15 @@ from utils.utils import compute_iou2, compute_metrics
 
 def log_det_model_performance(model, model_name, test, test_loss):
     os.makedirs('saved_models/detection_models', exist_ok=True)
-    log_file = f'saved_models/segmentation_models/{model_name}.log'
-    
-    # Set up logging
+    log_file = f'saved_models/detection_models/{model_name}.log'
     logger = logging.getLogger(model_name)
     logger.setLevel(logging.INFO)
-    
     if not logger.handlers:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-    logging.info(f'Test Loss: {test_loss:.4f}')
     
     mean_precision = tf.keras.metrics.Mean()
     mean_recall = tf.keras.metrics.Mean()
@@ -50,35 +46,34 @@ def log_det_model_performance(model, model_name, test, test_loss):
         mean_f1_score.update_state(f1_score)
         mean_iou.update_state(iou)
 
-    mean_precision_result = mean_precision.result().numpy()
-    mean_f1_score_result = mean_f1_score.result().numpy()
-    mean_recall_result = mean_recall.result().numpy()
-    mean_iou_result = mean_iou.result().numpy()
+    mean_precision_result = mean_precision.result().numpy().item()
+    mean_f1_score_result = mean_f1_score.result().numpy().item()    
+    mean_recall_result = mean_recall.result().numpy().item()        
+    mean_iou_result = mean_iou.result().numpy().item()      
     
     logging.info(f'Precision: {mean_precision_result:.4f}')
-    logging.info(f'Recall: {recall:.4f}')
-    logging.info(f'F1 Score: {f1:.4f}')
-    logging.info(f'Intersection over Union: {iou:.4f}')
+    print("Precision: ", mean_precision_result)
+    logging.info(f'Recall: {mean_recall_result:.4f}')
+    print("Recall: ", mean_recall_result)
+    logging.info(f'F1 Score: {mean_f1_score_result:.4f}')
+    print("F1: ", mean_f1_score_result)
+    logging.info(f'Intersection over Union: {mean_iou_result:.4f}')
+    print("IoU: ", mean_iou_result)
     logging.info(f'Hyperparameters: {model.optimizer.get_config()}')
-    true_class_counts = Counter(y_true_all)
-    pred_class_counts = Counter(y_pred_all)
-    logging.info(f'True class distribution: {true_class_counts}')
-    logging.info(f'Predicted class distribution: {pred_class_counts}')
     model.summary(print_fn=logging.info)
+    
+    
+    
     
 def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     os.makedirs('saved_models/segmentation_models', exist_ok=True)
-    
     log_file = f'saved_models/segmentation_models/{model_name}.log'
-    
-    # Set up logging
     logger = logging.getLogger(model_name)
     logger.setLevel(logging.INFO)
-    
     if not logger.handlers:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     
@@ -101,9 +96,13 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     f1 = f1_score(y_true_all, y_pred_all, average='weighted', zero_division=0)
     
     logger.info(f'Confusion Matrix: \n{cm}')
+    print("I printed the CM")
     logger.info(f'Precision: {precision:.4f}')
+    print("Precision: ", precision)
     logger.info(f'Recall: {recall:.4f}')
+    print("Recall: ", recall) 
     logger.info(f'F1 Score: {f1:.4f}')
+    print("F1: ", f1)
     
     true_class_counts = Counter(y_true_all)
     pred_class_counts = Counter(y_pred_all)
@@ -113,7 +112,6 @@ def log_seg_model_performance(model, model_name, test, test_loss, test_acc):
     logger.info(f'Hyperparameters: {model.optimizer.get_config()}')
     
     model.summary(print_fn=logger.info)
-
     
     
 def train_detection_model(model, model_name, Train, Val, Test, Batchsize=2, Epochs=50):

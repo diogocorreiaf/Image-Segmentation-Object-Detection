@@ -1,7 +1,7 @@
 import os
 import  xml.etree.ElementTree as ET
 import tensorflow as tf
-from dataset_preprocessing.data_preprocessing import create_data_loader
+from dataset_preprocessing.data_preprocessing import create_data_loader, compute_class_weights
 from utils.utils import dataset_path
 
 
@@ -89,7 +89,8 @@ def load_and_shuffle_data(model_type):
 
     return Train, Val, Test
 
-def create_datasets(Train,Val,Test, model_type):
+def create_datasets(Train,Val,Test, model_type): 
+    
     Train = tf.data.Dataset.from_tensor_slices(Train)
     Val = tf.data.Dataset.from_tensor_slices(Val)
     Test = tf.data.Dataset.from_tensor_slices(Test)

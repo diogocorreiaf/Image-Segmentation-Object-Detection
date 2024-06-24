@@ -1,7 +1,8 @@
 import tensorflow as tf
+import os
+import json
 from tensorflow.keras import regularizers
 from utils.constants import Img_Width, Img_Height, num_classes_segmentation
-
 
 def FCN_VGG8(dropout_rate = 0.5, activation = "relu", kernel_initializer = "zeros"  ):
   Input = tf.keras.layers.Input(shape = [Img_Width,Img_Height,3])
@@ -58,9 +59,31 @@ def FCN_VGG8(dropout_rate = 0.5, activation = "relu", kernel_initializer = "zero
 
   return tf.keras.Model(inputs = Input,outputs = Score)
 
+def weighted_categorical_crossentropy(weights):
+    weights = tf.constant(weights)
 
+    def loss(y_true, y_pred):
+        y_true_one_hot = tf.one_hot(tf.argmax(y_true, axis=-1), depth=num_classes_segmentation)
+        weights_per_class = tf.reduce_sum(weights * y_true_one_hot, axis=-1)
+        unweighted_losses = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+        weighted_losses = unweighted_losses * weights_per_class
+        return tf.reduce_mean(weighted_losses)
+
+    return loss
+
+def load_class_weights(weights_path):
+    with open(weights_path, 'r') as f:
+        return json.load(f)
 
 def create_segmentation_model(transfer_learning=True, learning_rate=1e-4, momentum=0.9, optimizer_name='SGD', dropout_rate=0.5, activation='relu', kernel_initializer='zeros'):
+    script_dir = os.path.dirname(__file__)  # Directory of the current script (models/segmentation_model.py)
+    class_weights_path = os.path.join(script_dir, 'class_weights_segmentation.json')
+    class_weights = load_class_weights(class_weights_path)
+    total_weight = sum(class_weights.values())
+    class_weights_normalized = {int(cls): float(weight) / total_weight for cls, weight in class_weights.items()}
+    class_weights_list = [class_weights_normalized[i] if i in class_weights_normalized else 0 for i in range(num_classes_segmentation)]
+
+    
     model = FCN_VGG8(dropout_rate, activation, kernel_initializer)
     
     VGG16 = tf.keras.applications.vgg16.VGG16(weights='imagenet')
@@ -73,18 +96,20 @@ def create_segmentation_model(transfer_learning=True, learning_rate=1e-4, moment
     
 
     tf.keras.backend.clear_session()
-    MeanIou = tf.keras.metrics.MeanIoU(num_classes_segmentation)
+    mean_iou = tf.keras.metrics.MeanIoU(num_classes=num_classes_segmentation)
 
     if optimizer_name == 'SGD':
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
     elif optimizer_name == 'Adam':
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    elif optimizer_name == 'RMSProp':
+    elif optimizer_name == 'RMSprop':
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum)
     elif optimizer_name == 'Adagrad':
         optimizer = tf.keras.optimizers.Adagrad(learning_rate=learning_rate)
     elif optimizer_name == 'Nadam':
         optimizer = tf.keras.optimizers.Nadam(learning_rate=learning_rate)
-
-    model.compile(optimizer=optimizer, loss=tf.keras.losses.categorical_crossentropy, metrics=[MeanIou])
+        
+    loss_fn = weighted_categorical_crossentropy(class_weights_list)
+    
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=[mean_iou])
     return model
