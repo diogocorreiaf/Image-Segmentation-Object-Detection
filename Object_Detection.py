@@ -35,7 +35,7 @@ def create_model_1(transfer_learning, learning_rate, momentum, optimizer, kernel
         return "Error creating model."
     
     
-def train_model(model_name, batch_size, epochs):
+def train_model(model_name, epochs, batch_size):
     train_detection_model(model,model_name, Train, Val, Test, batch_size, epochs)
     return "Model trained successfully."
 

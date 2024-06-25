@@ -60,24 +60,20 @@ def get_path():
 
 
 def compute_metrics(predictions, labels):
-    # Extract confidence scores and bounding box coordinates from predictions and labels
-    pred_confidence = predictions[..., 4]  # Confidence score
-    true_confidence = labels[..., 4]  # Confidence score
-
-    # Convert confidence scores to boolean (1 for object, 0 for no object)
+    
+    pred_confidence = predictions[..., 4]  
+    true_confidence = labels[..., 4] 
+    
     pred_conf_bool = tf.cast(pred_confidence > 0.5, dtype=tf.float32)
     true_conf_bool = tf.cast(true_confidence > 0.5, dtype=tf.float32)
 
-    # Compute true positives, false positives, and false negatives
-    true_positives = tf.reduce_sum(pred_conf_bool * true_conf_bool, axis=(1, 2))  # Sum over spatial dimensions (7, 7)
-    false_positives = tf.reduce_sum(pred_conf_bool * (1 - true_conf_bool), axis=(1, 2))  # Sum over spatial dimensions (7, 7)
-    false_negatives = tf.reduce_sum((1 - pred_conf_bool) * true_conf_bool, axis=(1, 2))  # Sum over spatial dimensions (7, 7)
+    true_positives = tf.reduce_sum(pred_conf_bool * true_conf_bool, axis=(1, 2))  
+    false_positives = tf.reduce_sum(pred_conf_bool * (1 - true_conf_bool), axis=(1, 2)) 
+    false_negatives = tf.reduce_sum((1 - pred_conf_bool) * true_conf_bool, axis=(1, 2)) 
 
-    # Compute precision and recall
     precision = true_positives / tf.maximum(true_positives + false_positives, 1e-10)
     recall = true_positives / tf.maximum(true_positives + false_negatives, 1e-10)
 
-    # Compute F1 score
     f1_score = 2 * (precision * recall) / tf.maximum(precision + recall, 1e-10)
 
     return precision, recall, f1_score

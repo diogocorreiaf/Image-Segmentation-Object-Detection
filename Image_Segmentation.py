@@ -4,7 +4,7 @@ logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
 from utils.utils import dataset_randomizer
-from dataset_preprocessing.data_loading import load_and_shuffle_data, create_datasets
+from dataset_preprocessing.data_loading import load_and_shuffle_data, create_datasets, compute_class_weights
 from models.segmentation_models import create_segmentation_model
 from training.train import train_segmentation_model
 from testing.test import gui_segmentation_model_test
@@ -35,7 +35,6 @@ def create_model(transfer_learning, learning_rate, momentum, optimizer, dropout_
     
     
 def train_model(model_name, batch_size, epochs):
-    print(epochs)
     train_segmentation_model(model,model_name, Train, Val, Test, batch_size, epochs)
     return "Model trained successfully."
     
