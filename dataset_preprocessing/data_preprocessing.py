@@ -42,35 +42,6 @@ def compute_class_weights(train):
     
 
 
-def preprocess(img,y):
-  img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
-
-  labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
-  return img,labels
-
-def preprocess_augment(img,y):
-  img = tf.image.random_brightness(img, max_delta=50.)
-  img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
-  img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
-  #img = tf.image.random_hue(img, max_delta=0.5 )
-  img = tf.clip_by_value(img, 0, 255)
-  labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
-  return img,labels
-
-def process_data(image,bboxes):
-    aug= tf.numpy_function(func=aug_albument, inp=[image,bboxes], Tout=(tf.float32,tf.float32))
-    return aug[0],aug[1]
-
-def get_imbboxes(paths):
-    im_path = paths[0] 
-    xml_path = paths[1]
-    img = tf.io.decode_jpeg(tf.io.read_file(im_path))
-    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
-    
-    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
-    
-    return img, bboxes
-
 transforms = A.Compose([
     A.Resize(Img_Height,Img_Width),
     A.RandomCrop(
@@ -86,24 +57,8 @@ def aug_albument(image,bboxes):
   return [tf.convert_to_tensor(augmented["image"],dtype=tf.float32),
           tf.convert_to_tensor(augmented["bboxes"],dtype=tf.float32)]
 
-def process_data(image,bboxes):
-    aug= tf.numpy_function(func=aug_albument, inp=[image,bboxes], Tout=(tf.float32,tf.float32))
-    return aug[0],aug[1]
 
-def preprocess_augment(img, y):
-    img = tf.image.random_brightness(img, max_delta=50.)
-    img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
-    img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
-    img = tf.clip_by_value(img, 0, 255)
-    labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
-    return img, labels
-
-def preprocess(img, y):
-    img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
-    labels=tf.numpy_function(func=generate_output, inp=[y], Tout=(tf.float32))
-    return img, labels
-
-def preprocess_xml(filename):
+def parse_xml(filename):
     tree=ET.parse(filename)
     root=tree.getroot()
     size_tree=root.find('size')
@@ -130,7 +85,7 @@ def preprocess_xml(filename):
     return tf.convert_to_tensor(bounding_boxes)
 
 
-def generate_output(bounding_boxes):
+def generate_labels(bounding_boxes):
   output_label=np.zeros((SPLIT_SIZE,SPLIT_SIZE,num_classes_detection+5))
   for b in range(len(bounding_boxes)):
     grid_x=bounding_boxes[...,b,0]*SPLIT_SIZE
@@ -161,152 +116,46 @@ def Create_Mask(Img):
     return tf.cast(Seg_Labels, dtype=tf.float16)
 
 
-
-def seg_preprocess_augment(Instance, is_training):
-    '''
-    Preprocesses an image and its corresponding mask for training.
-
-    Args:
-    - Instance (tuple): A tuple containing image and mask paths.
-    - is_training: Checks the training type
-
-    Returns:
-    - tuple: A tuple containing preprocessed image and mask.
-    '''
-    Img = Image.open(Instance[0].numpy())
-    Img = Img.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
-    Img = np.asarray(Img)
-
-    Mask = Image.open(Instance[1].numpy())
-    Mask = Mask.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
-    Mask = np.asarray(Mask)
-
-
-    Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
-
-
-    # Only apply augmentations if training dataset
-    if is_training and tf.random.uniform(()) > 0.5:
-        aug = RandomRotate90(p=0.5) 
-        Augmented = aug(image=Img, mask=Mask)
-
-        Img = Augmented["image"]
-        Mask = Augmented["mask"]
-
-    return Normalization(Img), Create_Mask(Mask)
-
-
-def detect_preprocess_augment(Instance, is_training):
-    '''
-    Preprocesses an image and its corresponding mask for training.
-
-    Args:
-    - Instance (tuple): A tuple containing image and mask paths.
-    - is_training: Checks the training type
-
-    Returns:
-    - tuple: A tuple containing preprocessed image and mask.
-    '''
-    Img = Image.open(Instance[0].numpy())
-    Img = Img.resize((Img_Width, Img_Height), resample=Image.BILINEAR)
-    Normalization = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
-
-    bboxes = tf.numpy_function(func=preprocess_xml, inp=[Instance[1]], Tout=tf.float32)
-
-    if is_training:
-        Img = tf.image.random_brightness(Img, max_delta=50.)
-        Img = tf.image.random_saturation(Img, lower=0.5, upper=1.5)
-        Img = tf.image.random_contrast(Img, lower=0.5, upper=1.5)
-        Img = tf.clip_by_value(Img, 0, 255)
-
-    Img = tf.cast(Img, dtype=tf.float16)
-    bboxes=tf.numpy_function(func=generate_output, inp=[bboxes], Tout=(tf.float32))
-
-    return Normalization(Img), bboxes
-
-
-
-
-def seg_preprocess(Instance, is_training = True):
-    '''
-    Preprocesses an image and its corresponding mask for training.
-
-    Args:
-    - Instance (tuple): A tuple containing image and mask paths.
-    - is_training: checks the training type
-
-    Returns:
-    - tuple: A tuple containing preprocessed image and mask.
-             Preprocessed image: Scaled to specified dimensions and augmented if necessary.
-             Preprocessed mask: Segmentation mask corresponding to the image.
-    ''' 
-    Img, Mask = tf.py_function(seg_preprocess_augment, [Instance, is_training], [tf.float16, tf.float16])
-    
-    Img = tf.ensure_shape(Img, [None, None, 3])
-    Mask = tf.ensure_shape(Mask, [None, None, num_classes_segmentation]) 
-    
-    return Img, Mask
-
   
 def detection_preprocess_augment(Instance):
     im_path = Instance[0] 
     xml_path = Instance[1]
 
-    # Read and preprocess the image
+    # Reading an preprocessing the image
     img = tf.io.decode_jpeg(tf.io.read_file(im_path))
     img = tf.image.resize(img, size=[Img_Height, Img_Width])
-    img = tf.image.convert_image_dtype(img, dtype=tf.float32)  # Convert to float32
+    img = tf.image.convert_image_dtype(img, dtype=tf.float32) 
     
-    # Preprocess XML annotations to bounding boxes
-    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
+    # Parsing XML annotations to bounding boxes
+    bboxes = tf.numpy_function(func=parse_xml, inp=[xml_path], Tout=tf.float32)
     
-    # Apply Albumentations transformations
+    # Apply dataset augmentation
     img, bboxes = tf.numpy_function(func=aug_albument, inp=[img, bboxes], Tout=[tf.float32, tf.float32])
-    
-    # Apply additional augmentations
     img = tf.image.random_brightness(img, max_delta=50.)
     img = tf.image.random_saturation(img, lower=0.5, upper=1.5)
     img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
     img = tf.clip_by_value(img, 0, 255)
     
     # Generate output labels in YOLO format
-    labels = tf.numpy_function(func=generate_output, inp=[bboxes], Tout=tf.float32)
+    labels = tf.numpy_function(func=generate_labels, inp=[bboxes], Tout=tf.float32)
     
     return img, labels
 
 def detection_preprocess(Instance):
-    im_path = Instance[0]  # Extract image path
-    xml_path = Instance[1]  # Extract XML annotation path
-
-    # Read and preprocess the image
+    im_path = Instance[0] 
+    xml_path = Instance[1]  
+    
+    # Reading and preprocessing the image
     img = tf.io.decode_jpeg(tf.io.read_file(im_path))
     img = tf.image.resize(img, size=[Img_Height, Img_Width])
-    img = tf.image.convert_image_dtype(img, dtype=tf.float32)  # Convert to float32
+    img = tf.image.convert_image_dtype(img, dtype=tf.float32)
     
-    # Preprocess XML annotations to bounding boxes
-    bboxes = tf.numpy_function(func=preprocess_xml, inp=[xml_path], Tout=tf.float32)
+    # Parsing XML annotations to bounding boxes, generate labels
+    bboxes = tf.numpy_function(func=parse_xml, inp=[xml_path], Tout=tf.float32)
     img = tf.cast(tf.image.resize(img, size=[Img_Height, Img_Width]), dtype=tf.float32)
-    labels = tf.numpy_function(func=generate_output, inp=[bboxes], Tout=tf.float32)
+    labels = tf.numpy_function(func=generate_labels, inp=[bboxes], Tout=tf.float32)
     return img, labels
 
-def detect_preprocess(Instance, is_training):
-    '''
-    Preprocess an Image and its corresponding annotation for training
-    
-    Args:
-    - im_path (string): The path to the image file.
-    - xml_path (string): The path to the XML file.
-    - is_training (bool): checks the training type
-
-    Returns:
-    - tuple: A tuple containing preprocessed image and mask.
-             Preprocessed image: Scaled to specified dimensions and augmented if necessary.
-             Preprocessed mask: Segmentation mask corresponding to the image.'''
-
-    Img, bboxes = tf.py_function(detect_preprocess_augment, [Instance, is_training], [tf.float16, tf.float16])
-    Img = tf.ensure_shape(Img, [None, None, 3])
-
-    return Img, bboxes
 
 def Create_Mask_Augment(Instance):
     Img = Image.open(Instance[0].numpy())
@@ -366,7 +215,7 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=3, BUFFER_SIZE
             data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
 
         else:
-            data = dataset.map(Seg_Augment_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
+            data = dataset.map(Seg_Preprocess,num_parallel_calls = tf.data.AUTOTUNE)
     
     elif(data_type == 'detection'):
         if(train_type == 'train') :
@@ -376,9 +225,6 @@ def create_data_loader(dataset, train_type, data_type, BATCH_SIZE=3, BUFFER_SIZE
 
     data = data.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat(1)
     data = data.prefetch(buffer_size = tf.data.AUTOTUNE)
-    
-
-
     return data
 
 

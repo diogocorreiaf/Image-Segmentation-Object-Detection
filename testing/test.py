@@ -92,19 +92,12 @@ def yolo_loss(y_true, y_pred):
     return yolo_loss(y_true, y_pred)
 
 def gui_detection_model_test(model_name, img):
-    # Resize the image
     img = cv2.resize(img, (Img_Height, Img_Width))
-
-    # Save a copy of the original image for later
     original_img = img.copy()
-
-    # Convert the image to a tensor and resize it
     image = tf.convert_to_tensor(img)
     image = tf.image.resize(image, [Img_Height, Img_Width])
 
     model = tf.keras.models.load_model(f'saved_models/detection_models/{model_name}')
-    
-    # Predict the output
     output = model.predict(np.expand_dims(image, axis=0))
 
     THRESH = .25
@@ -159,7 +152,6 @@ def gui_detection_model_test(model_name, img):
             cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (2, 225, 155), 1
         )
 
-    # Convert BGR to RGB for matplotlib
     original_img = cv2.cvtColor(original_img, cv2.COLOR_BGR2RGB)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 

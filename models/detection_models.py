@@ -63,8 +63,6 @@ def yolo_loss(y_true,y_pred):
     
     center_loss=difference(tf.cast(center_pred,dtype=tf.float32),tf.cast(center_target,dtype=tf.float32))
     
-    
-    
     #------------------------------------------------------- for width and height
     
     size_joined=tf.stack([y_pred_extract[...,3:5],y_pred_extract[...,8:10]],axis=-1)
